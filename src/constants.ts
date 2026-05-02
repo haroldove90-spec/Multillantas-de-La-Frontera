@@ -1,4 +1,4 @@
-import { Tire, Service, TPMS, InventoryMovement, StockTransfer, ServiceNote, Cliente } from './types';
+import { Tire, Service, TPMS, InventoryMovement, StockTransfer, ServiceNote, Cliente, FinanceMovement, AccountReceivable, AccountPayable, AuditLog } from './types';
 
 export const TIRES: Tire[] = [
   {
@@ -38,7 +38,7 @@ export const TIRES: Tire[] = [
     rim: 19,
     size: '245/35 R19',
     price: 5600,
-    stock: 3, // Low stock for testing
+    stock: 3,
     branchStocks: { 'Centro': 1, 'Norte': 1, 'Frontera': 1 },
     image: 'https://i5.walmartimages.com/asr/bc253198-fac1-4a77-b3a6-0cd3ab900844.5267cce960c39019c47a6e50a5715bc9.jpeg?odnHeight=640&odnWidth=640&odnBg=FFFFFF'
   },
@@ -112,91 +112,41 @@ export const MOCK_NOTES: ServiceNote[] = [
 ];
 
 export const MOCK_CLIENTES: Cliente[] = [
-  {
-    id: '1',
-    nombre: 'Juan Pérez',
-    rfc: 'PERJ800101XYZ',
-    telefono: '555-0101',
-    direccion: 'Av. Reforma 123, Centro',
-    placa_vehiculo: 'ABC-1234',
-    sucursal_registro_id: 'Centro',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    nombre: 'Maria García',
-    rfc: 'GARM900505ABC',
-    telefono: '555-0202',
-    direccion: 'Calle Norte 45, Col. Industrial',
-    placa_vehiculo: 'XYZ-9876',
-    sucursal_registro_id: 'Norte',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    nombre: 'Roberto Sánchez',
-    rfc: 'SANR851010123',
-    telefono: '555-0303',
-    direccion: 'Blvd. Frontera 789',
-    placa_vehiculo: 'MEX-1122',
-    sucursal_registro_id: 'Frontera',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '4',
-    nombre: 'Ana López',
-    rfc: 'LOPA920303QWE',
-    telefono: '555-0404',
-    direccion: 'Av. Central 55',
-    placa_vehiculo: 'GTO-9988',
-    sucursal_registro_id: 'Centro',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }
+  { id: '1', nombre: 'Juan Pérez', rfc: 'PERJ800101XYZ', telefono: '555-0101', direccion: 'Av. Reforma 123, Centro', placa_vehiculo: 'ABC-1234', sucursal_registro_id: 'Centro', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: '2', nombre: 'Maria García', rfc: 'GARM900505ABC', telefono: '555-0202', direccion: 'Calle Norte 45, Col. Industrial', placa_vehiculo: 'XYZ-9876', sucursal_registro_id: 'Norte', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+];
+
+export const MOCK_FINANCE: FinanceMovement[] = [
+  { id: 'F1', type: 'Ingreso', category: 'Venta', amount: 13000, description: 'Pago Nota MF-1001', date: '2024-05-01T15:00:00Z', branch: 'Frontera', status: 'Completado' },
+  { id: 'F2', type: 'Ingreso', category: 'Venta', amount: 3000, description: 'Anticipo Nota MF-1002', date: '2024-05-02T09:00:00Z', branch: 'Centro', status: 'Completado' },
+  { id: 'F3', type: 'Egreso', category: 'Proveedor', amount: 45000, description: 'Compra Llantas Goodyear', date: '2024-05-01T10:00:00Z', branch: 'Frontera', status: 'Completado' },
+];
+
+export const MOCK_CXC: AccountReceivable[] = [
+  { id: 'CXC1', noteId: 'N2', clienteId: '2', clienteNombre: 'Maria García', total: 9600, saldo: 6600, dueDate: '2024-06-02T09:00:00Z', status: 'Al Corriente' },
+];
+
+export const MOCK_CXP: AccountPayable[] = [
+  { id: 'CXP1', supplier: 'Goodyear Distribución', amount: 85000, dueDate: '2024-05-20T10:00:00Z', description: 'Factura F-9901 Lote Mayo', status: 'Pendiente' },
+  { id: 'CXP2', supplier: 'Michelin México', amount: 120000, dueDate: '2024-05-15T12:00:00Z', description: 'Factura M-4432 Neumáticos Deportivos', status: 'Vencido' },
+];
+
+export const MOCK_AUDIT: AuditLog[] = [
+  { id: 'L1', userId: 'A1', userName: 'Admin', action: 'Transferencia Autorizada', entity: 'StockTransfer', entityId: 'T1', timestamp: '2024-05-02T12:00:00Z', branch: 'Centro', details: 'Envió 4 unidades de Goodyear a Frontera' },
+  { id: 'L2', userId: 'A1', userName: 'Admin', action: 'Ajuste Stock', entity: 'InventoryMovement', entityId: 'M2', timestamp: '2024-05-02T11:00:00Z', branch: 'Centro', details: 'Salida de 2 unidades por daño' },
 ];
 
 export const SERVICES: Service[] = [
-  {
-    id: 'S1',
-    name: 'Alineación y Balanceo',
-    price: 1200,
-    duration: '45 min',
-    status: 'in-progress',
-    customer: 'Juan Pérez - BMW M3'
-  },
-  {
-    id: 'S2',
-    name: 'Montaje de Llantas (x4)',
-    price: 800,
-    duration: '60 min',
-    status: 'pending',
-    customer: 'María García - Toyota Hilux'
-  },
-  {
-    id: 'S3',
-    name: 'Programación TPMS',
-    price: 450,
-    duration: '15 min',
-    status: 'completed',
-    customer: 'Ricardo Soto - Ford F-150'
-  }
+  { id: 'S1', name: 'Alineación y Balanceo', price: 1200, duration: '45 min', status: 'in-progress', customer: 'Juan Pérez - BMW M3' },
+  { id: 'S2', name: 'Montaje de Llantas (x4)', price: 800, duration: '60 min', status: 'pending', customer: 'María García - Toyota Hilux' },
+  { id: 'S3', name: 'Programación TPMS', price: 450, duration: '15 min', status: 'completed', customer: 'Ricardo Soto - Ford F-150' }
 ];
 
 export const INVENTORY = [
   { id: 'LL-001', type: 'Llanta', name: 'Eagle F1 Asymmetric 5', size: '225/45 R17', stock: 12, price: 3250, branch: 'Frontera' },
-  { id: 'LL-002', type: 'Llanta', name: 'Wrangler Duratrac', size: '265/70 R17', stock: 8, price: 4800, branch: 'Frontera' },
   { id: 'SN-101', type: 'Sensor', name: 'Sensor TPMS Universal', size: 'Gen 2', stock: 45, price: 980, branch: 'Centro' },
-  { id: 'AC-202', type: 'Accesorio', name: 'Válvula de Aire Aluminio', size: 'Universal', stock: 120, price: 150, branch: 'Norte' },
-  { id: 'LL-003', type: 'Llanta', name: 'Pilot Sport 4S', size: '245/35 R19', stock: 4, price: 5600, branch: 'Centro' },
-  { id: 'LL-004', type: 'Llanta', name: 'P Zero', size: '255/40 R20', stock: 15, price: 6800, branch: 'Norte' },
 ];
 
 export const BILLING = [
   { id: 'F-8842', customer: 'Automotriz del Norte S.A.', date: '2023-11-20', total: 12450, status: 'Pagada', branch: 'Frontera' },
-  { id: 'F-8843', customer: 'Distribuidora Global', date: '2023-11-21', total: 8900, status: 'Pendiente', branch: 'Centro' },
-  { id: 'F-8844', customer: 'Particulares - Venta Mostrador', date: '2023-11-21', total: 3250, status: 'Pagada', branch: 'Frontera' },
-  { id: 'F-8845', customer: 'Taller San José', date: '2023-11-22', total: 15600, status: 'Cancelada', branch: 'Norte' },
 ];

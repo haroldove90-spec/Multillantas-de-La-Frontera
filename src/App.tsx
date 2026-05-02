@@ -23,7 +23,9 @@ import {
   FileText,
   LogOut,
   Bell,
-  AlertCircle
+  AlertCircle,
+  Activity,
+  Printer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Role, Tire, Service, VehicleEntry, Branch, InspectionData } from './types';
@@ -33,6 +35,7 @@ import { NotaDeServicio } from './components/NotaDeServicio';
 import { ClientesPanel } from './components/ClientesPanel';
 import { InventarioPanel } from './components/InventarioPanel';
 import { GeneradorNotas } from './components/GeneradorNotas';
+import { AnalyticsPanel } from './components/AnalyticsPanel';
 
 const LOGO_URL = 'https://appdesign.appdesignproyectos.com/multillantas.png';
 
@@ -147,11 +150,12 @@ export default function App() {
     { id: 'clientes', label: 'Clientes', icon: <User size={20} />, roles: ['Administrador', 'Vendedor'] },
     { id: 'notas', label: 'Notas/POS', icon: <FileText size={20} />, roles: ['Administrador', 'Vendedor'] },
     { id: 'inventario', label: 'Inventario', icon: <Box size={20} />, roles: ['Administrador', 'Vendedor'] },
+    { id: 'analytics', label: 'Inteligencia', icon: <Activity size={20} />, roles: ['Administrador'] },
   ].filter(item => {
     // Role specific logic
     if (role === 'Cliente') return item.id === 'ecommerce';
     if (role === 'Técnico') return item.id === 'taller' || item.id === 'dashboard';
-    if (role === 'Vendedor') return item.id !== 'taller';
+    if (role === 'Vendedor') return item.id !== 'taller' && item.id !== 'analytics';
     return item.roles.includes(role);
   }), [role]);
 
@@ -516,41 +520,121 @@ export default function App() {
                 </motion.div>
               )}
 
+              {activeTab === 'analytics' && (
+                <motion.div key="analytics" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <AnalyticsPanel />
+                </motion.div>
+              )}
+
               {activeTab === 'facturacion' && (
-                <motion.div key="facturacion" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
-                  <header>
-                    <h2 className="text-3xl font-black tracking-tight italic uppercase">HISTORIAL <span className="text-brand-red">VENTAS</span></h2>
-                    <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.2em] mt-1 border-l-2 border-brand-blue pl-3">Cobros Registrados - {branch}</p>
+                <motion.div key="facturacion" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10">
+                  <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div>
+                      <h2 className="text-3xl font-black tracking-tight italic uppercase text-white">CENTRO DE <span className="text-brand-gold">FACTURACIÓN SAT</span></h2>
+                      <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.2em] mt-1 border-l-2 border-brand-red pl-3">Simulación de Timbrado Fiscal CFDI 4.0</p>
+                    </div>
+                    <div className="flex items-center gap-3 bg-brand-matte border border-brand-border p-2 rounded-2xl">
+                         <div className="px-4 py-1.5 bg-brand-gold/10 border border-brand-gold/20 rounded-xl text-[10px] font-black text-brand-gold uppercase">Gabinete: {branch}</div>
+                    </div>
                   </header>
-                  <div className="bg-brand-matte border border-brand-border rounded-3xl p-6 overflow-x-auto shadow-2xl">
-                    <table className="w-full text-left min-w-[600px]">
+
+                  <div className="bg-brand-matte border border-brand-border rounded-3xl p-8 overflow-x-auto shadow-2xl relative">
+                    <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="relative flex-1 max-w-md">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                            <input 
+                                type="text" 
+                                placeholder="Buscar por folio o cliente..." 
+                                className="w-full bg-brand-dark border border-brand-border rounded-xl pl-12 pr-4 py-3 text-sm text-white focus:border-brand-gold outline-none transition-all"
+                            />
+                        </div>
+                        <div className="flex gap-2">
+                             <button className="px-6 py-3 bg-brand-dark border border-brand-border rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all">Este Mes</button>
+                             <button className="px-6 py-3 bg-brand-red text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-brand-red/20">Reporte Mensual</button>
+                        </div>
+                    </div>
+
+                    <table className="w-full text-left min-w-[800px]">
                       <thead>
                         <tr className="border-b border-brand-border/50">
-                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Folio</th>
-                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Cliente</th>
-                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Fecha</th>
-                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Estatus</th>
-                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">Total</th>
+                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500 px-4">Folio Fiscal</th>
+                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500 px-4">Cliente / RFC</th>
+                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500 px-4">Fecha</th>
+                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500 px-4">Estatus Sat</th>
+                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500 px-4 text-right">Total</th>
+                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500 px-4 text-center">Acciones</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-brand-border/30">
-                        {BILLING.filter(b => (b as any).branch === branch).map(bill => (
+                        {BILLING.map(bill => (
                           <tr key={bill.id} className="group hover:bg-white/5 transition-colors">
-                            <td className="py-4 font-black text-brand-blue">{bill.id}</td>
-                            <td className="py-4 font-bold text-sm tracking-tight">{bill.customer}</td>
-                            <td className="py-4 text-xs font-medium text-slate-500">{bill.date}</td>
-                            <td className="py-4">
-                              <span className={`text-[8px] font-black px-2 py-1 rounded uppercase ${
-                                bill.status === 'Pagada' ? 'bg-green-500/10 text-green-500' : bill.status === 'Pendiente' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-brand-red/10 text-brand-red'
+                            <td className="py-5 px-4">
+                                <div className="flex flex-col">
+                                    <span className="font-black text-brand-gold">{bill.id}</span>
+                                    <span className="text-[8px] font-mono text-slate-600 truncate max-w-[120px]">E48-842-X-99</span>
+                                </div>
+                            </td>
+                            <td className="py-5 px-4 font-bold text-sm tracking-tight">
+                                <div className="flex flex-col">
+                                    <span className="text-white">{bill.customer}</span>
+                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">XAXX010101000</span>
+                                </div>
+                            </td>
+                            <td className="py-5 px-4 text-xs font-medium text-slate-500">{bill.date}</td>
+                            <td className="py-5 px-4">
+                              <span className={`text-[8px] font-black px-2 py-1 rounded-[4px] uppercase tracking-widest ${
+                                bill.status === 'Pagada' ? 'bg-green-500/10 text-green-500' : 'bg-brand-red/10 text-brand-red animate-pulse'
                               }`}>
-                                {bill.status}
+                                {bill.status === 'Pagada' ? 'TIMBRADA' : 'PENDIENTE'}
                               </span>
                             </td>
-                            <td className="py-4 text-right font-black text-white">${bill.total.toLocaleString()}</td>
+                            <td className="py-5 px-4 text-right font-black text-white text-lg">${bill.total.toLocaleString()}</td>
+                            <td className="py-5 px-4">
+                                <div className="flex items-center justify-center gap-2">
+                                     <button className="p-2 bg-brand-gold/10 text-brand-gold rounded-lg hover:bg-brand-gold hover:text-black transition-all group/btn relative" title="Descargar XML">
+                                        <FileText size={14} />
+                                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover/btn:opacity-100 transition-opacity whitespace-nowrap">XML</span>
+                                     </button>
+                                     <button className="p-2 bg-brand-red/10 text-brand-red rounded-lg hover:bg-brand-red hover:text-white transition-all group/btn relative" title="Descargar PDF">
+                                        <Printer size={14} />
+                                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover/btn:opacity-100 transition-opacity whitespace-nowrap">PDF</span>
+                                     </button>
+                                </div>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-brand-dark border border-brand-border rounded-3xl p-6 flex items-center gap-4">
+                            <div className="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center text-green-500">
+                                <CheckCircle2 size={24} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sello Digital</p>
+                                <p className="text-xs font-bold text-white italic">VIGENTE Y VALIDADO</p>
+                            </div>
+                        </div>
+                        <div className="bg-brand-dark border border-brand-border rounded-3xl p-6 flex items-center gap-4">
+                            <div className="w-12 h-12 bg-brand-blue/10 rounded-2xl flex items-center justify-center text-brand-blue">
+                                <ShieldCheck size={24} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Certificado CSD</p>
+                                <p className="text-xs font-bold text-white italic">VENCE EN 45 DÍAS</p>
+                            </div>
+                        </div>
+                        <div className="bg-brand-dark border border-brand-border rounded-3xl p-6 flex items-center gap-4">
+                            <div className="w-12 h-12 bg-brand-red/10 rounded-2xl flex items-center justify-center text-brand-red">
+                                <Zap size={24} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Timbrado Masivo</p>
+                                <p className="text-xs font-bold text-white italic">ACTIVO - PAC: INDIV</p>
+                            </div>
+                        </div>
                   </div>
                 </motion.div>
               )}

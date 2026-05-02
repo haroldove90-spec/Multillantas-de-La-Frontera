@@ -138,6 +138,50 @@ export interface ServiceNote {
   vendedor: string;
 }
 
+export interface FinanceMovement {
+  id: string;
+  type: 'Ingreso' | 'Egreso';
+  category: 'Venta' | 'Servicio' | 'Proveedor' | 'Gasto Operativo';
+  amount: number;
+  description: string;
+  date: string;
+  branch: Branch;
+  status: 'Completado' | 'Pendiente' | 'Vencido';
+}
+
+export interface AccountReceivable {
+  id: string;
+  noteId: string;
+  clienteId: string;
+  clienteNombre: string;
+  total: number;
+  saldo: number;
+  dueDate: string;
+  lastPaymentDate?: string;
+  status: 'Al Corriente' | 'Atrasado';
+}
+
+export interface AccountPayable {
+  id: string;
+  supplier: string;
+  amount: number;
+  dueDate: string;
+  description: string;
+  status: 'Pendiente' | 'Pagado' | 'Vencido';
+}
+
+export interface AuditLog {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  entity: string;
+  entityId: string;
+  timestamp: string;
+  branch: Branch;
+  details: string;
+}
+
 export interface Service {
   id: string;
   name: string;
