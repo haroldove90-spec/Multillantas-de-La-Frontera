@@ -62,20 +62,20 @@ const ExchangeRateWidget = () => {
   }, []);
 
   return (
-    <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-brand-matte border border-brand-border rounded-2xl shadow-inner group hover:border-brand-gold/50 transition-all">
-      <div className="w-8 h-8 rounded-lg bg-brand-gold/10 flex items-center justify-center text-brand-gold">
-        <DollarSign size={16} />
+    <div className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-1.5 md:py-2 bg-brand-matte border border-brand-border rounded-xl md:rounded-2xl shadow-inner group hover:border-brand-gold/50 transition-all">
+      <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-brand-gold/10 flex items-center justify-center text-brand-gold">
+        <DollarSign size={14} className="md:w-4 md:h-4" />
       </div>
       <div>
-        <div className="flex items-center gap-2">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">USD/MXN</p>
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+        <div className="flex items-center gap-1.5 md:gap-2">
+            <p className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">USD/MXN</p>
+            <div className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full bg-green-500 animate-pulse" />
         </div>
-        <p className="text-sm font-black text-white">${rate} <span className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">Banxico Live</span></p>
+        <p className="text-[10px] md:text-sm font-black text-white">${rate} <span className="hidden xs:inline text-[8px] md:text-[9px] text-slate-500 font-bold uppercase tracking-tighter">Live</span></p>
       </div>
-      <div className="ml-2 border-l border-brand-border pl-3 flex flex-col justify-center min-w-[70px]">
-         <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">Feed Activo</p>
-         <p className="text-[11px] font-mono text-brand-gold font-bold leading-none tabular-nums tracking-tighter">{currentTime}</p>
+      <div className="hidden sm:flex ml-2 border-l border-brand-border pl-3 flex flex-col justify-center min-w-[60px] md:min-w-[70px]">
+         <p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">Feed Activo</p>
+         <p className="text-[10px] md:text-[11px] font-mono text-brand-gold font-bold leading-none tabular-nums tracking-tighter">{currentTime}</p>
       </div>
     </div>
   );
