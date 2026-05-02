@@ -43,14 +43,22 @@ const LOGO_URL = 'https://appdesign.appdesignproyectos.com/multillantas.png';
 
 const ExchangeRateWidget = () => {
   const [rate, setRate] = useState(20.42);
-  const [lastUpdate, setLastUpdate] = useState(new Date().toLocaleTimeString());
+  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString('es-MX'));
 
+  // Clock updates every second
   useEffect(() => {
-    const interval = setInterval(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString('es-MX'));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Rate updates every 30 seconds for simulation
+  useEffect(() => {
+    const rateTimer = setInterval(() => {
       setRate(prev => Number((prev + (Math.random() - 0.5) * 0.01).toFixed(2)));
-      setLastUpdate(new Date().toLocaleTimeString());
-    }, 15000);
-    return () => clearInterval(interval);
+    }, 30000);
+    return () => clearInterval(rateTimer);
   }, []);
 
   return (
@@ -61,13 +69,13 @@ const ExchangeRateWidget = () => {
       <div>
         <div className="flex items-center gap-2">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">USD/MXN</p>
-            <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
         </div>
         <p className="text-sm font-black text-white">${rate} <span className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">Banxico Live</span></p>
       </div>
-      <div className="ml-2 border-l border-brand-border pl-3 flex flex-col justify-center">
-         <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">Last Update</p>
-         <p className="text-[9px] font-mono text-brand-gold opacity-60 leading-none">{lastUpdate}</p>
+      <div className="ml-2 border-l border-brand-border pl-3 flex flex-col justify-center min-w-[70px]">
+         <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">Feed Activo</p>
+         <p className="text-[11px] font-mono text-brand-gold font-bold leading-none tabular-nums tracking-tighter">{currentTime}</p>
       </div>
     </div>
   );
@@ -183,6 +191,7 @@ export default function App() {
     { id: 'taller', label: 'Control Taller', icon: <Car size={20} />, roles: ['Administrador', 'Técnico'] },
     { id: 'clientes', label: 'Clientes', icon: <User size={20} />, roles: ['Administrador', 'Vendedor'] },
     { id: 'notas', label: 'Notas/POS', icon: <FileText size={20} />, roles: ['Administrador', 'Vendedor'] },
+    { id: 'facturacion', label: 'Facturación', icon: <ShieldCheck size={20} />, roles: ['Administrador'] },
     { id: 'inventario', label: 'Inventario', icon: <Box size={20} />, roles: ['Administrador', 'Vendedor'] },
     { id: 'analytics', label: 'Inteligencia', icon: <Activity size={20} />, roles: ['Administrador'] },
   ].filter(item => {
