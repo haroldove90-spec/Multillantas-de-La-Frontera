@@ -25,7 +25,8 @@ import {
   Bell,
   AlertCircle,
   Activity,
-  Printer
+  Printer,
+  DollarSign
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Role, Tire, Service, VehicleEntry, Branch, InspectionData } from './types';
@@ -36,8 +37,41 @@ import { ClientesPanel } from './components/ClientesPanel';
 import { InventarioPanel } from './components/InventarioPanel';
 import { GeneradorNotas } from './components/GeneradorNotas';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
+import { FacturacionPanel } from './components/FacturacionPanel';
 
 const LOGO_URL = 'https://appdesign.appdesignproyectos.com/multillantas.png';
+
+const ExchangeRateWidget = () => {
+  const [rate, setRate] = useState(20.42);
+  const [lastUpdate, setLastUpdate] = useState(new Date().toLocaleTimeString());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRate(prev => Number((prev + (Math.random() - 0.5) * 0.01).toFixed(2)));
+      setLastUpdate(new Date().toLocaleTimeString());
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-brand-matte border border-brand-border rounded-2xl shadow-inner group hover:border-brand-gold/50 transition-all">
+      <div className="w-8 h-8 rounded-lg bg-brand-gold/10 flex items-center justify-center text-brand-gold">
+        <DollarSign size={16} />
+      </div>
+      <div>
+        <div className="flex items-center gap-2">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">USD/MXN</p>
+            <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+        </div>
+        <p className="text-sm font-black text-white">${rate} <span className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">Banxico Live</span></p>
+      </div>
+      <div className="ml-2 border-l border-brand-border pl-3 flex flex-col justify-center">
+         <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">Last Update</p>
+         <p className="text-[9px] font-mono text-brand-gold opacity-60 leading-none">{lastUpdate}</p>
+      </div>
+    </div>
+  );
+};
 
 export default function App() {
   const [role, setRole] = useState<Role>('Administrador');
@@ -287,6 +321,7 @@ export default function App() {
 
             {/* User Icon & Notifications for mobile/desktop toggle */}
             <div className="flex items-center gap-3">
+              <ExchangeRateWidget />
               {role === 'Cliente' && (
                 <button 
                   onClick={() => setIsCartOpen(true)}
@@ -527,115 +562,8 @@ export default function App() {
               )}
 
               {activeTab === 'facturacion' && (
-                <motion.div key="facturacion" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10">
-                  <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                    <div>
-                      <h2 className="text-3xl font-black tracking-tight italic uppercase text-white">CENTRO DE <span className="text-brand-gold">FACTURACIÓN SAT</span></h2>
-                      <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.2em] mt-1 border-l-2 border-brand-red pl-3">Simulación de Timbrado Fiscal CFDI 4.0</p>
-                    </div>
-                    <div className="flex items-center gap-3 bg-brand-matte border border-brand-border p-2 rounded-2xl">
-                         <div className="px-4 py-1.5 bg-brand-gold/10 border border-brand-gold/20 rounded-xl text-[10px] font-black text-brand-gold uppercase">Gabinete: {branch}</div>
-                    </div>
-                  </header>
-
-                  <div className="bg-brand-matte border border-brand-border rounded-3xl p-8 overflow-x-auto shadow-2xl relative">
-                    <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="relative flex-1 max-w-md">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                            <input 
-                                type="text" 
-                                placeholder="Buscar por folio o cliente..." 
-                                className="w-full bg-brand-dark border border-brand-border rounded-xl pl-12 pr-4 py-3 text-sm text-white focus:border-brand-gold outline-none transition-all"
-                            />
-                        </div>
-                        <div className="flex gap-2">
-                             <button className="px-6 py-3 bg-brand-dark border border-brand-border rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all">Este Mes</button>
-                             <button className="px-6 py-3 bg-brand-red text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-brand-red/20">Reporte Mensual</button>
-                        </div>
-                    </div>
-
-                    <table className="w-full text-left min-w-[800px]">
-                      <thead>
-                        <tr className="border-b border-brand-border/50">
-                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500 px-4">Folio Fiscal</th>
-                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500 px-4">Cliente / RFC</th>
-                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500 px-4">Fecha</th>
-                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500 px-4">Estatus Sat</th>
-                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500 px-4 text-right">Total</th>
-                          <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500 px-4 text-center">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-brand-border/30">
-                        {BILLING.map(bill => (
-                          <tr key={bill.id} className="group hover:bg-white/5 transition-colors">
-                            <td className="py-5 px-4">
-                                <div className="flex flex-col">
-                                    <span className="font-black text-brand-gold">{bill.id}</span>
-                                    <span className="text-[8px] font-mono text-slate-600 truncate max-w-[120px]">E48-842-X-99</span>
-                                </div>
-                            </td>
-                            <td className="py-5 px-4 font-bold text-sm tracking-tight">
-                                <div className="flex flex-col">
-                                    <span className="text-white">{bill.customer}</span>
-                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">XAXX010101000</span>
-                                </div>
-                            </td>
-                            <td className="py-5 px-4 text-xs font-medium text-slate-500">{bill.date}</td>
-                            <td className="py-5 px-4">
-                              <span className={`text-[8px] font-black px-2 py-1 rounded-[4px] uppercase tracking-widest ${
-                                bill.status === 'Pagada' ? 'bg-green-500/10 text-green-500' : 'bg-brand-red/10 text-brand-red animate-pulse'
-                              }`}>
-                                {bill.status === 'Pagada' ? 'TIMBRADA' : 'PENDIENTE'}
-                              </span>
-                            </td>
-                            <td className="py-5 px-4 text-right font-black text-white text-lg">${bill.total.toLocaleString()}</td>
-                            <td className="py-5 px-4">
-                                <div className="flex items-center justify-center gap-2">
-                                     <button className="p-2 bg-brand-gold/10 text-brand-gold rounded-lg hover:bg-brand-gold hover:text-black transition-all group/btn relative" title="Descargar XML">
-                                        <FileText size={14} />
-                                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover/btn:opacity-100 transition-opacity whitespace-nowrap">XML</span>
-                                     </button>
-                                     <button className="p-2 bg-brand-red/10 text-brand-red rounded-lg hover:bg-brand-red hover:text-white transition-all group/btn relative" title="Descargar PDF">
-                                        <Printer size={14} />
-                                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover/btn:opacity-100 transition-opacity whitespace-nowrap">PDF</span>
-                                     </button>
-                                </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-brand-dark border border-brand-border rounded-3xl p-6 flex items-center gap-4">
-                            <div className="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center text-green-500">
-                                <CheckCircle2 size={24} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sello Digital</p>
-                                <p className="text-xs font-bold text-white italic">VIGENTE Y VALIDADO</p>
-                            </div>
-                        </div>
-                        <div className="bg-brand-dark border border-brand-border rounded-3xl p-6 flex items-center gap-4">
-                            <div className="w-12 h-12 bg-brand-blue/10 rounded-2xl flex items-center justify-center text-brand-blue">
-                                <ShieldCheck size={24} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Certificado CSD</p>
-                                <p className="text-xs font-bold text-white italic">VENCE EN 45 DÍAS</p>
-                            </div>
-                        </div>
-                        <div className="bg-brand-dark border border-brand-border rounded-3xl p-6 flex items-center gap-4">
-                            <div className="w-12 h-12 bg-brand-red/10 rounded-2xl flex items-center justify-center text-brand-red">
-                                <Zap size={24} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Timbrado Masivo</p>
-                                <p className="text-xs font-bold text-white italic">ACTIVO - PAC: INDIV</p>
-                            </div>
-                        </div>
-                  </div>
+                <motion.div key="facturacion" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <FacturacionPanel />
                 </motion.div>
               )}
 

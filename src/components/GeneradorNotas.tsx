@@ -65,6 +65,17 @@ export const GeneradorNotas: React.FC = () => {
   const [productSearch, setProductSearch] = useState('');
   const [showCustomerResults, setShowCustomerResults] = useState(false);
   const [showProductResults, setShowProductResults] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [customItem, setCustomItem] = useState<{
+    description: string;
+    price: number;
+    image: string | null;
+  }>({
+    description: '',
+    price: 0,
+    image: null
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Derived Data
   const filteredNotes = useMemo(() => {
@@ -106,6 +117,36 @@ export const GeneradorNotas: React.FC = () => {
     }
     setShowProductResults(false);
     setProductSearch('');
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCustomItem(prev => ({ ...prev, image: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAddCustomItem = () => {
+    if (!customItem.description || customItem.price <= 0) return;
+    
+    const newItem: NoteItem = {
+      id: Math.random().toString(36).substr(2, 9),
+      type: 'Producto',
+      itemId: 'custom-' + Date.now(),
+      description: customItem.description,
+      quantity: 1,
+      unitPrice: customItem.price,
+      total: customItem.price,
+      image: customItem.image || 'https://images.unsplash.com/photo-1599256621730-535171e06ef2?q=80&w=200&auto=format&fit=crop'
+    };
+    
+    setNoteForm(prev => ({ ...prev, items: [...prev.items, newItem] }));
+    setCustomItem({ description: '', price: 0, image: null });
+    setShowManualForm(false);
   };
 
   const handleUpdateQuantity = (id: string, delta: number) => {
@@ -441,41 +482,112 @@ export const GeneradorNotas: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Product Search */}
                   <div className="space-y-4 relative">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Agregar Llantas al Servicio</label>
-                        <div className="relative">
-                            <ShoppingCart className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                            <input 
-                                type="text"
-                                placeholder="Escribe marca, modelo o medida..."
-                                value={productSearch}
-                                onChange={(e) => {
-                                    setProductSearch(e.target.value);
-                                    setShowProductResults(true);
-                                }}
-                                className="w-full bg-brand-dark border border-brand-border rounded-xl pl-12 pr-4 py-3 text-sm text-white outline-none focus:border-brand-red transition-all"
-                            />
+                        <div className="flex justify-between items-center">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Agregar Llantas o Servicios</label>
+                            <button 
+                                onClick={() => setShowManualForm(!showManualForm)}
+                                className="text-[10px] font-black uppercase text-brand-red flex items-center gap-1 hover:underline"
+                            >
+                                <Plus size={12} /> {showManualForm ? 'Ver Inventario' : 'Artículo Manual'}
+                            </button>
                         </div>
-                        {showProductResults && productSearch && (
-                            <div className="absolute bottom-full left-0 w-full mb-2 bg-brand-matte border border-brand-border rounded-2xl shadow-2xl z-10 max-h-60 overflow-y-auto custom-scrollbar py-2">
-                                {TIRES.filter(t => t.brand.toLowerCase().includes(productSearch.toLowerCase()) || t.model.toLowerCase().includes(productSearch.toLowerCase()) || t.size.toLowerCase().includes(productSearch.toLowerCase())).map(t => (
-                                    <button 
-                                        key={t.id}
-                                        onClick={() => handleAddProduct(t)}
-                                        className="w-full px-6 py-3 text-left hover:bg-white/5 flex items-center gap-4 group"
-                                    >
-                                        <div className="w-10 h-10 rounded bg-brand-dark p-1">
-                                            <img src={t.image} alt="" className="w-full h-full object-contain" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-xs font-bold text-white group-hover:text-brand-red transition-colors">{t.brand} {t.model}</p>
-                                            <p className="text-[10px] text-slate-500">{t.size}</p>
-                                        </div>
-                                        <span className="text-xs font-black text-brand-gold">${t.price.toLocaleString()}</span>
-                                    </button>
-                                ))}
+                        
+                        {!showManualForm ? (
+                            <div className="relative">
+                                <ShoppingCart className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                                <input 
+                                    type="text"
+                                    placeholder="Escribe marca, modelo o medida..."
+                                    value={productSearch}
+                                    onChange={(e) => {
+                                        setProductSearch(e.target.value);
+                                        setShowProductResults(true);
+                                    }}
+                                    className="w-full bg-brand-dark border border-brand-border rounded-xl pl-12 pr-4 py-3 text-sm text-white outline-none focus:border-brand-red transition-all"
+                                />
+                                {showProductResults && productSearch && (
+                                    <div className="absolute bottom-full left-0 w-full mb-2 bg-brand-matte border border-brand-border rounded-2xl shadow-2xl z-10 max-h-60 overflow-y-auto custom-scrollbar py-2">
+                                        {TIRES.filter(t => t.brand.toLowerCase().includes(productSearch.toLowerCase()) || t.model.toLowerCase().includes(productSearch.toLowerCase()) || t.size.toLowerCase().includes(productSearch.toLowerCase())).map(t => (
+                                            <button 
+                                                key={t.id}
+                                                onClick={() => handleAddProduct(t)}
+                                                className="w-full px-6 py-3 text-left hover:bg-white/5 flex items-center gap-4 group"
+                                            >
+                                                <div className="w-10 h-10 rounded bg-brand-dark p-1">
+                                                    <img src={t.image} alt="" className="w-full h-full object-contain" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-xs font-bold text-white group-hover:text-brand-red transition-colors">{t.brand} {t.model}</p>
+                                                    <p className="text-[10px] text-slate-500">{t.size}</p>
+                                                </div>
+                                                <span className="text-xs font-black text-brand-gold">${t.price.toLocaleString()}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
+                        ) : (
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="bg-brand-dark/30 border border-brand-border rounded-2xl p-6 space-y-4"
+                            >
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black uppercase text-slate-500 tracking-widest pl-1">Descripción / Servicio</label>
+                                        <input 
+                                            type="text"
+                                            placeholder="Ej. Cambio de Aceite, Llanta USADA..."
+                                            value={customItem.description}
+                                            onChange={(e) => setCustomItem({ ...customItem, description: e.target.value })}
+                                            className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-brand-red transition-all"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black uppercase text-slate-500 tracking-widest pl-1">Precio Unitario ($)</label>
+                                        <input 
+                                            type="number"
+                                            placeholder="0.00"
+                                            value={customItem.price}
+                                            onChange={(e) => setCustomItem({ ...customItem, price: Number(e.target.value) })}
+                                            className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-brand-red transition-all"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                    <div 
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="w-24 h-24 bg-brand-dark border-2 border-dashed border-brand-border rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-brand-red/50 hover:bg-brand-red/5 transition-all text-slate-500 group overflow-hidden"
+                                    >
+                                        {customItem.image ? (
+                                            <img src={customItem.image} alt="Preview" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <>
+                                                <Briefcase size={20} className="group-hover:text-brand-red" />
+                                                <span className="text-[8px] font-black uppercase">Foto</span>
+                                            </>
+                                        )}
+                                        <input 
+                                            type="file" 
+                                            ref={fileInputRef}
+                                            onChange={handleImageUpload}
+                                            className="hidden" 
+                                            accept="image/*"
+                                        />
+                                    </div>
+                                    <div className="flex-1 space-y-3">
+                                        <p className="text-[8px] text-slate-500 italic">Opcional: Sube una foto del producto, registro de serie o evidencia del servicio para la nota.</p>
+                                        <button 
+                                            onClick={handleAddCustomItem}
+                                            className="w-full py-2 bg-brand-red text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-brand-red/20 active:scale-95 transition-all"
+                                        >
+                                            Agregar a la Lista
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
                         )}
                   </div>
                 </div>
