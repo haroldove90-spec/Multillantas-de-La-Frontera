@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Box, 
   Search, 
@@ -27,7 +27,8 @@ import {
   TransferStatus,
   MovementType 
 } from '../types';
-import { TIRES, MOCK_MOVEMENTS, MOCK_TRANSFERS } from '../constants';
+import { MOCK_MOVEMENTS, MOCK_TRANSFERS } from '../constants';
+import { getTires } from '../utils/persistentStorage';
 
 interface InventarioPanelProps {
   userRole: Role;
@@ -35,13 +36,22 @@ interface InventarioPanelProps {
 
 export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [tires, setTires] = useState<Tire[]>(TIRES);
+  const [tires, setTires] = useState<Tire[]>(() => getTires());
   const [exchangeRate, setExchangeRate] = useState(20.50);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBranch, setSelectedBranch] = useState<Branch | 'Todas'>('Todas');
   const [selectedBrand, setSelectedBrand] = useState('Todas');
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
+
+  // Sync state when custom events dispatch (e.g., physical counts or adjustments)
+  useEffect(() => {
+    const handleStateUpdate = () => {
+      setTires(getTires());
+    };
+    window.addEventListener('multillantas_state_update', handleStateUpdate);
+    return () => window.removeEventListener('multillantas_state_update', handleStateUpdate);
+  }, []);
 
   // Filters
   const brands = useMemo(() => ['Todas', ...new Set(tires.map(t => t.brand))], [tires]);
@@ -264,20 +274,22 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
                 <div className="mt-4 pt-4 border-t border-brand-border/50">
                     <div className="flex items-center justify-between text-[8px] font-black text-slate-600 uppercase tracking-widest mb-2">
                         <span>Sucursal</span>
-                        <span>Disp.</span>
+                        <span>Disp. (Semáforo)</span>
                     </div>
                     <div className="space-y-1.5">
-                        {(['Centro', 'Norte', 'Frontera'] as Branch[]).map(b => (
-                            <div key={b} className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-1 h-1 rounded-full ${
-                                        b === 'Centro' ? 'bg-brand-red' : b === 'Norte' ? 'bg-brand-blue' : 'bg-brand-gold'
-                                    }`} />
-                                    <span className="text-[10px] text-slate-400 font-bold">{b}</span>
+                        {(['Centro', 'Norte', 'Frontera'] as Branch[]).map(b => {
+                            const subStock = tire.branchStocks[b] || 0;
+                            const indicatorColor = subStock > 10 ? 'bg-green-500' : subStock === 0 ? 'bg-brand-red animate-pulse' : 'bg-amber-500';
+                            return (
+                                <div key={b} className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-1.5 h-1.5 rounded-full ${indicatorColor}`} />
+                                        <span className="text-[10px] text-slate-400 font-bold">{b}</span>
+                                    </div>
+                                    <span className="text-[10px] font-mono text-white">{subStock}</span>
                                 </div>
-                                <span className="text-[10px] font-mono text-white">{tire.branchStocks[b]}</span>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
               </div>

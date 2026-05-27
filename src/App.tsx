@@ -38,6 +38,8 @@ import { InventarioPanel } from './components/InventarioPanel';
 import { GeneradorNotas } from './components/GeneradorNotas';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { FacturacionPanel } from './components/FacturacionPanel';
+import { ControlOperativoPanel } from './components/ControlOperativoPanel';
+import { getTires } from './utils/persistentStorage';
 
 const LOGO_URL = 'https://appdesign.appdesignproyectos.com/multillantas.png';
 
@@ -145,6 +147,16 @@ export default function App() {
     { id: '6', plate: 'PBA-4433', brand: 'Mazda', model: '3', reason: 'Balanceo', status: 'recepcion', entryTime: '01:20 PM', branch: 'Centro' },
   ]);
 
+  const [tiresList, setTiresList] = useState(() => getTires());
+
+  useEffect(() => {
+    const handleStateUpdate = () => {
+      setTiresList(getTires());
+    };
+    window.addEventListener('multillantas_state_update', handleStateUpdate);
+    return () => window.removeEventListener('multillantas_state_update', handleStateUpdate);
+  }, []);
+
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleEntry | null>(null);
   const [selectedVehicleForNote, setSelectedVehicleForNote] = useState<VehicleEntry | null>(null);
 
@@ -192,6 +204,7 @@ export default function App() {
     { id: 'clientes', label: 'Clientes', icon: <User size={20} />, roles: ['Administrador', 'Vendedor'] },
     { id: 'notas', label: 'Notas/POS', icon: <FileText size={20} />, roles: ['Administrador', 'Vendedor'] },
     { id: 'facturacion', label: 'Facturación', icon: <ShieldCheck size={20} />, roles: ['Administrador'] },
+    { id: 'control-operativo', label: 'Control Operativo', icon: <ShieldCheck size={20} />, roles: ['Administrador', 'Vendedor'] },
     { id: 'inventario', label: 'Inventario', icon: <Box size={20} />, roles: ['Administrador', 'Vendedor'] },
     { id: 'analytics', label: 'Inteligencia', icon: <Activity size={20} />, roles: ['Administrador'] },
   ].filter(item => {
@@ -547,6 +560,56 @@ export default function App() {
                           <QuickAction label="Ingreso Taller" icon={<Car />} color="blue" onClick={() => setActiveTab('taller')} />
                         </div>
                       </div>
+
+                      {/* Dashboard Semáforo (Stock > 10 🟢, Stock < 5 🟡, Stock = 0 🔴) */}
+                      <div className="bg-brand-matte border border-brand-border rounded-3xl p-6 shadow-2xl space-y-4">
+                        <div className="flex items-center justify-between border-b border-brand-border/40 pb-3">
+                          <h3 className="font-bold text-xs uppercase tracking-widest flex items-center gap-2 text-white/90">
+                             <span className="w-2 h-2 rounded-full bg-brand-gold animate-pulse" /> 🚦 Monitoreo de Almacén ({branch.toUpperCase()})
+                          </h3>
+                        </div>
+                        <div className="space-y-1.5 md:space-y-2 max-h-[280px] overflow-y-auto pr-1.5 custom-scrollbar">
+                          {tiresList.map(t => {
+                            const stockLocal = t.branchStocks[branch] || 0;
+                            let badge = '🟢';
+                            let label = 'Suficiente';
+                            let textClass = 'text-green-500';
+                            let bgClass = 'bg-green-500/10 border-green-500/20';
+
+                            if (stockLocal === 0) {
+                              badge = '🔴';
+                              label = 'Agotado';
+                              textClass = 'text-brand-red';
+                              bgClass = 'bg-brand-red/10 border-brand-red/20';
+                            } else if (stockLocal < 5) {
+                              badge = '🟡';
+                              label = 'Stock Crítico';
+                              textClass = 'text-amber-500 font-bold';
+                              bgClass = 'bg-amber-500/10 border-amber-500/20';
+                            } else if (stockLocal <= 10) {
+                              badge = '🟡';
+                              label = 'Alerta';
+                              textClass = 'text-amber-500 font-bold';
+                              bgClass = 'bg-amber-500/10 border-amber-500/20';
+                            }
+
+                            return (
+                              <div key={t.id} className="p-2 md:p-3 bg-brand-dark/40 border border-brand-border/60 rounded-xl flex items-center justify-between gap-3 hover:border-brand-gold/20 transition-all">
+                                <div className="min-w-0">
+                                  <p className="text-[11px] font-bold text-white leading-tight truncate">{t.brand} {t.model}</p>
+                                  <p className="text-[9px] text-slate-500 font-mono mt-0.5 truncate">{t.size}</p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <span className={`text-[9.5px] font-black px-2 py-0.5 rounded border ${bgClass} ${textClass}`}>
+                                    {badge} {stockLocal} u.
+                                  </span>
+                                  <p className="text-[7.5px] text-slate-500 uppercase mt-1 font-black leading-none">{label}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -573,6 +636,12 @@ export default function App() {
               {activeTab === 'facturacion' && (
                 <motion.div key="facturacion" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <FacturacionPanel />
+                </motion.div>
+              )}
+
+              {activeTab === 'control-operativo' && (
+                <motion.div key="control-operativo" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <ControlOperativoPanel currentUserName={role} currentBranch={branch} />
                 </motion.div>
               )}
 
