@@ -32,28 +32,6 @@ import {
   PhysicalCountRecord 
 } from '../utils/persistentStorage';
 
-const playBeep = () => {
-  try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const audioCtx = new AudioContextClass();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-    
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(1400, audioCtx.currentTime); 
-    gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime); 
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    
-    oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 0.12); 
-  } catch (e) {
-    console.log('Electronic beep sound did not play:', e);
-  }
-};
-
 export const ControlOperativoPanel: React.FC<{ currentUserName: string; currentBranch: Branch }> = ({ 
   currentUserName, 
   currentBranch 
@@ -75,9 +53,15 @@ export const ControlOperativoPanel: React.FC<{ currentUserName: string; currentB
   const [isCountingActive, setIsCountingActive] = useState(false);
   const [conteoBranch, setConteoBranch] = useState<Branch>(currentBranch);
   const [countedQuantities, setCountedQuantities] = useState<Record<string, number>>({});
-  const [hasScanned, setHasScanned] = useState(false);
-  const [recentlyScannedName, setRecentlyScannedName] = useState('');
-  const [barcodeInput, setBarcodeInput] = useState('');
+  
+  // Deactivated scanner variables (satisfying legacy hidden markup)
+  const barcodeInput = "";
+  const setBarcodeInput = (val: string) => {};
+  const handleBarcodeSubmit = (e: React.FormEvent) => e.preventDefault();
+  const handleSimulateBulkScan = () => {};
+  const hasScanned = false;
+  const recentlyScannedName = "";
+  const handleSimulateScan = (tireId: string) => {};
   
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -151,95 +135,6 @@ export const ControlOperativoPanel: React.FC<{ currentUserName: string; currentB
     });
     setCountedQuantities(initialCounts);
     setIsCountingActive(true);
-    setHasScanned(false);
-    setRecentlyScannedName('');
-  };
-
-  // Barcode Scanning Simulation
-  const handleSimulateScan = (tireId: string) => {
-    playBeep();
-    setCountedQuantities(prev => ({
-      ...prev,
-      [tireId]: (prev[tireId] || 0) + 1
-    }));
-    
-    const tire = tires.find(t => t.id === tireId);
-    if (tire) {
-      setRecentlyScannedName(`${tire.brand} ${tire.model}`);
-      setHasScanned(true);
-      console.log(`BEEP! Scanned ${tire.brand} ${tire.model}`);
-      // Fade out banner message shortly after scanning
-      setTimeout(() => {
-        setHasScanned(false);
-      }, 3000);
-    }
-  };
-
-  // Simulated Manual Barcode Scanner parsing
-  const handleBarcodeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!barcodeInput.trim()) return;
-
-    // Try to find tire by brand, model, or ID
-    const inputUpper = barcodeInput.toLowerCase().trim();
-    const foundTire = tires.find(t => 
-      t.id.toLowerCase() === inputUpper ||
-      t.brand.toLowerCase().includes(inputUpper) ||
-      t.model.toLowerCase().includes(inputUpper) ||
-      t.size.toLowerCase().includes(inputUpper)
-    );
-
-    if (foundTire) {
-      handleSimulateScan(foundTire.id);
-      setBarcodeInput('');
-    } else {
-      // Unrecognized scan outputs error buzz
-      try {
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        if (AudioContextClass) {
-          const audioCtx = new AudioContextClass();
-          const oscillator = audioCtx.createOscillator();
-          const gainNode = audioCtx.createGain();
-          oscillator.type = 'sawtooth';
-          oscillator.frequency.setValueAtTime(180, audioCtx.currentTime); // Error buzz
-          gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
-          oscillator.connect(gainNode);
-          gainNode.connect(audioCtx.destination);
-          oscillator.start();
-          oscillator.stop(audioCtx.currentTime + 0.3);
-        }
-      } catch (err) {}
-      
-      setRecentlyScannedName(`Código "${barcodeInput}" Incorrecto o No Registrado`);
-      setHasScanned(true);
-      setTimeout(() => {
-        setHasScanned(false);
-      }, 3000);
-    }
-  };
-
-  // Simulates bulk scanning of the entire rack automatically with realistic slight deviations
-  const handleSimulateBulkScan = () => {
-    playBeep();
-    const updatedCounts: Record<string, number> = {};
-    tires.forEach(t => {
-      const theoretical = t.branchStocks[conteoBranch] || 0;
-      const ran = Math.random();
-      if (ran > 0.85) {
-        updatedCounts[t.id] = Math.max(0, theoretical - 1); // Shortage
-      } else if (ran > 0.70 && ran <= 0.85) {
-        updatedCounts[t.id] = theoretical + 1; // Surplus
-      } else {
-        updatedCounts[t.id] = theoretical; // Exact match
-      }
-    });
-
-    setCountedQuantities(updatedCounts);
-    setRecentlyScannedName("Escaneo Masivo Completado OK ✔");
-    setHasScanned(true);
-    setTimeout(() => {
-      setHasScanned(false);
-    }, 4000);
   };
 
   // Submit and Conciliate count
@@ -618,14 +513,14 @@ export const ControlOperativoPanel: React.FC<{ currentUserName: string; currentB
                 <div className="bg-brand-matte border border-brand-border rounded-[2.5rem] p-8 shadow-2xl flex flex-col justify-between">
                      <div className="space-y-6">
                         <div className="flex items-center gap-3">
-                          <QrCode className="text-brand-red shrink-0" size={24} />
+                          <ClipboardCheck className="text-brand-red shrink-0" size={24} />
                           <div>
                             <h3 className="text-xl font-black italic uppercase text-white">CONTEO FÍSICO RACK</h3>
                             <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Verificación de discrepancias física vs teórica</p>
                           </div>
                         </div>
                         <p className="text-xs text-slate-300 italic leading-relaxed">
-                          Este modo permite a los operarios escanear neumáticos uno por uno directamente en el rack de almacén. Al completar, el sistema genera alertas de robo hormiga, faltantes fiscales y discrepancias logísticas.
+                          Este modo permite a los operarios realizar la planilla de conteo físico de forma manual directamente en el rack de almacén. Al completar, el sistema genera alertas de discrepancias, faltantes y conciliaciones logísticas.
                         </p>
                         
                         <div className="space-y-2">
@@ -701,9 +596,9 @@ export const ControlOperativoPanel: React.FC<{ currentUserName: string; currentB
               </div>
             ) : (
               /* ACTIVE COUNTING TERMINAL SCREEN */
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 gap-8">
                  {/* Left Side: Scanner Device screen simulator */}
-                 <div className="bg-black border-2 border-brand-red rounded-[2.5rem] p-8 shadow-[0_0_50px_rgba(255,0,0,0.15)] flex flex-col justify-between">
+                 <div className="hidden bg-black border-2 border-brand-red rounded-[2.5rem] p-8 shadow-[0_0_50px_rgba(255,0,0,0.15)] flex flex-col justify-between">
                      <div className="space-y-6">
                         <div className="flex items-center justify-between border-b border-brand-border/40 pb-4">
                            <div className="flex items-center gap-2">
@@ -825,8 +720,8 @@ export const ControlOperativoPanel: React.FC<{ currentUserName: string; currentB
                  {/* Right Side: Counting Results Table in Real Time */}
                  <div className="lg:col-span-2 bg-brand-matte border border-brand-border rounded-[2.5rem] p-8 shadow-2xl space-y-6">
                      <div>
-                       <h3 className="text-xl font-black italic uppercase text-white">REPORTE EN TIEMPO REAL</h3>
-                       <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Contando rack físico en sucursal <span className="text-brand-gold font-bold">{conteoBranch}</span></p>
+                       <h3 className="text-xl font-black italic uppercase text-white">PLANILLA DE CONTEO FÍSICO</h3>
+                       <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Conteo físico manual de neumáticos en sucursal <span className="text-brand-gold font-bold">{conteoBranch}</span></p>
                      </div>
 
                      <div className="overflow-x-auto">
@@ -902,7 +797,26 @@ export const ControlOperativoPanel: React.FC<{ currentUserName: string; currentB
 
                      <div className="p-4 bg-brand-gold/5 border border-brand-gold/20 rounded-2xl flex items-center gap-3">
                         <Sparkles size={20} className="text-brand-gold animate-bounce" />
-                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">AUDITORÍA ACTIVA: Confirma los montos en Rack antes de conciliar con la base teórica de la sucursal.</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">AUDITORÍA ACTIVA: Confirma los montos de neumáticos usando los selectores manuales antes de conciliar con la base teórica de la sucursal.</p>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-brand-border/40">
+                        <button
+                          onClick={handleFinalizeConteo}
+                          type="button"
+                          className="flex-1 py-4 bg-brand-red text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                        >
+                          <Check size={16} strokeWidth={3} /> Finalizar y Conciliar
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsCountingActive(false);
+                          }}
+                          type="button"
+                          className="px-6 py-4 bg-transparent hover:bg-white/5 border border-brand-border text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                        >
+                          Cancelar Cuenta
+                        </button>
                      </div>
                  </div>
               </div>
