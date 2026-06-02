@@ -32,6 +32,28 @@ import {
   PhysicalCountRecord 
 } from '../utils/persistentStorage';
 
+const playBeep = () => {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const audioCtx = new AudioContextClass();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(1400, audioCtx.currentTime); 
+    gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime); 
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.12); 
+  } catch (e) {
+    console.log('Electronic beep sound did not play:', e);
+  }
+};
+
 export const ControlOperativoPanel: React.FC<{ currentUserName: string; currentBranch: Branch }> = ({ 
   currentUserName, 
   currentBranch 
@@ -55,6 +77,7 @@ export const ControlOperativoPanel: React.FC<{ currentUserName: string; currentB
   const [countedQuantities, setCountedQuantities] = useState<Record<string, number>>({});
   const [hasScanned, setHasScanned] = useState(false);
   const [recentlyScannedName, setRecentlyScannedName] = useState('');
+  const [barcodeInput, setBarcodeInput] = useState('');
   
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -134,6 +157,7 @@ export const ControlOperativoPanel: React.FC<{ currentUserName: string; currentB
 
   // Barcode Scanning Simulation
   const handleSimulateScan = (tireId: string) => {
+    playBeep();
     setCountedQuantities(prev => ({
       ...prev,
       [tireId]: (prev[tireId] || 0) + 1
@@ -143,13 +167,79 @@ export const ControlOperativoPanel: React.FC<{ currentUserName: string; currentB
     if (tire) {
       setRecentlyScannedName(`${tire.brand} ${tire.model}`);
       setHasScanned(true);
-      // Brief sound indicator simulated with console
       console.log(`BEEP! Scanned ${tire.brand} ${tire.model}`);
       // Fade out banner message shortly after scanning
       setTimeout(() => {
         setHasScanned(false);
       }, 3000);
     }
+  };
+
+  // Simulated Manual Barcode Scanner parsing
+  const handleBarcodeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!barcodeInput.trim()) return;
+
+    // Try to find tire by brand, model, or ID
+    const inputUpper = barcodeInput.toLowerCase().trim();
+    const foundTire = tires.find(t => 
+      t.id.toLowerCase() === inputUpper ||
+      t.brand.toLowerCase().includes(inputUpper) ||
+      t.model.toLowerCase().includes(inputUpper) ||
+      t.size.toLowerCase().includes(inputUpper)
+    );
+
+    if (foundTire) {
+      handleSimulateScan(foundTire.id);
+      setBarcodeInput('');
+    } else {
+      // Unrecognized scan outputs error buzz
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          const audioCtx = new AudioContextClass();
+          const oscillator = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          oscillator.type = 'sawtooth';
+          oscillator.frequency.setValueAtTime(180, audioCtx.currentTime); // Error buzz
+          gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+          oscillator.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          oscillator.start();
+          oscillator.stop(audioCtx.currentTime + 0.3);
+        }
+      } catch (err) {}
+      
+      setRecentlyScannedName(`Código "${barcodeInput}" Incorrecto o No Registrado`);
+      setHasScanned(true);
+      setTimeout(() => {
+        setHasScanned(false);
+      }, 3000);
+    }
+  };
+
+  // Simulates bulk scanning of the entire rack automatically with realistic slight deviations
+  const handleSimulateBulkScan = () => {
+    playBeep();
+    const updatedCounts: Record<string, number> = {};
+    tires.forEach(t => {
+      const theoretical = t.branchStocks[conteoBranch] || 0;
+      const ran = Math.random();
+      if (ran > 0.85) {
+        updatedCounts[t.id] = Math.max(0, theoretical - 1); // Shortage
+      } else if (ran > 0.70 && ran <= 0.85) {
+        updatedCounts[t.id] = theoretical + 1; // Surplus
+      } else {
+        updatedCounts[t.id] = theoretical; // Exact match
+      }
+    });
+
+    setCountedQuantities(updatedCounts);
+    setRecentlyScannedName("Escaneo Masivo Completado OK ✔");
+    setHasScanned(true);
+    setTimeout(() => {
+      setHasScanned(false);
+    }, 4000);
   };
 
   // Submit and Conciliate count
@@ -629,6 +719,50 @@ export const ControlOperativoPanel: React.FC<{ currentUserName: string; currentB
                            <div className="absolute w-full h-[2px] bg-brand-red shadow-[0_0_10px_rgba(255,0,0,1)] top-0 left-0 animate-scan pointer-events-none" />
                            <QrCode size={40} className="text-brand-red opacity-30 mt-2" />
                            <p className="text-[9px] font-mono text-slate-500 mt-2 tracking-widest uppercase">Listo para simular lectura</p>
+                        </div>
+
+                        {/* Barcode typed scanner form */}
+                        <form onSubmit={handleBarcodeSubmit} className="space-y-2">
+                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest pl-1">Ingresar Código de Barra / Neumático</label>
+                           <div className="flex gap-2">
+                             <input 
+                               type="text"
+                               placeholder="Escribe marca, modelo o medida..."
+                               value={barcodeInput}
+                               onChange={(e) => setBarcodeInput(e.target.value)}
+                               className="flex-1 bg-brand-matte border border-brand-border rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-700 outline-none focus:border-brand-red transition-all"
+                             />
+                             <button 
+                               type="submit"
+                               className="px-4 py-2.5 bg-brand-red hover:bg-brand-red/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-brand-red/10 animate-pulse"
+                             >
+                               LEER
+                             </button>
+                           </div>
+                        </form>
+
+                        {/* Simulated Bulk Scan trigger */}
+                        <div className="space-y-2">
+                           <button
+                             type="button"
+                             onClick={handleSimulateBulkScan}
+                             className="w-full py-2.5 bg-brand-gold/10 hover:bg-brand-gold/20 border border-brand-gold/30 text-brand-gold text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95"
+                           >
+                             ⚡ Escaneo Automático de Rack
+                           </button>
+                        </div>
+
+                        {/* Instruction manual for testing client */}
+                        <div className="p-4 bg-brand-matte border border-brand-border rounded-2xl space-y-2 text-slate-400">
+                          <p className="text-[9px] font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="text-brand-gold">📖</span> EXPERIENCIA DE ESCANEO DE SUCURSAL:
+                          </p>
+                          <ul className="text-[8px] list-disc list-inside space-y-1 text-slate-600">
+                            <li><strong className="text-slate-350">Pila Virtual:</strong> Escribe marcas (ej. "Michelin", "Goodyear", "Pirelli") y presiona "LEER".</li>
+                            <li><strong className="text-slate-350">Gatillo Rápido:</strong> Haz clic en <strong className="text-brand-red">+1 Escanear</strong> para simular tiro de pistola láser.</li>
+                            <li><strong className="text-slate-350">Sónico:</strong> Emite un sonido agudo real para confirmar el registro.</li>
+                            <li><strong className="text-slate-350">Masivo:</strong> Carga conteos instantáneos con variaciones aleatorias para pruebas rápidas.</li>
+                          </ul>
                         </div>
 
                         {/* Scan Alert Feed */}

@@ -9,6 +9,12 @@
   --color-brand-border: #262626;
   
   --animate-spin-slow: spin 8s linear infinite;
+  --animate-scan: scan 3s ease-in-out infinite;
+}
+
+@keyframes scan {
+  0%, 100% { top: 0%; filter: drop-shadow(0 0 4px #E30613); }
+  50% { top: 96%; filter: drop-shadow(0 0 10px #E30613); }
 }
 
 @keyframes spin-slow {

@@ -64,20 +64,20 @@ const ExchangeRateWidget = () => {
   }, []);
 
   return (
-    <div className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-1.5 md:py-2 bg-brand-matte border border-brand-border rounded-xl md:rounded-2xl shadow-inner group hover:border-brand-gold/50 transition-all">
-      <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-brand-gold/10 flex items-center justify-center text-brand-gold">
-        <DollarSign size={14} className="md:w-4 md:h-4" />
+    <div className="flex items-center gap-1.5 md:gap-3 px-2 md:px-4 py-1 md:py-2 bg-brand-matte border border-brand-border rounded-lg md:rounded-2xl shadow-inner group hover:border-brand-gold/50 transition-all">
+      <div className="w-6 h-6 md:w-8 md:h-8 rounded-lg bg-brand-gold/10 flex items-center justify-center text-brand-gold shrink-0">
+        <DollarSign size={12} className="md:w-4 md:h-4" />
       </div>
-      <div>
-        <div className="flex items-center gap-1.5 md:gap-2">
-            <p className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">USD/MXN</p>
+      <div className="shrink-0">
+        <div className="flex items-center gap-1 md:gap-2">
+            <p className="text-[7px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">USD/MXN</p>
             <div className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full bg-green-500 animate-pulse" />
         </div>
-        <p className="text-[10px] md:text-sm font-black text-white">${rate} <span className="hidden xs:inline text-[8px] md:text-[9px] text-slate-500 font-bold uppercase tracking-tighter">Live</span></p>
+        <p className="text-[9px] md:text-sm font-black text-white leading-none mt-0.5">${rate}</p>
       </div>
-      <div className="hidden sm:flex ml-2 border-l border-brand-border pl-3 flex flex-col justify-center min-w-[60px] md:min-w-[70px]">
-         <p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">Feed Activo</p>
-         <p className="text-[10px] md:text-[11px] font-mono text-brand-gold font-bold leading-none tabular-nums tracking-tighter">{currentTime}</p>
+      <div className="flex ml-1.5 md:ml-2 border-l border-brand-border pl-1.5 md:pl-3 flex flex-col justify-center min-w-[50px] md:min-w-[70px] shrink-0">
+         <p className="text-[6px] md:text-[8px] font-black text-slate-600 uppercase tracking-widest leading-none mb-0.5">Reloj</p>
+         <p className="text-[8px] md:text-[11px] font-mono text-brand-gold font-bold leading-none tabular-nums tracking-tighter">{currentTime}</p>
       </div>
     </div>
   );
@@ -202,8 +202,9 @@ export default function App() {
     { id: 'ecommerce', label: 'Catálogo', icon: <ShoppingCart size={20} />, roles: ['Administrador', 'Vendedor', 'Cliente'] },
     { id: 'taller', label: 'Control Taller', icon: <Car size={20} />, roles: ['Administrador', 'Técnico'] },
     { id: 'clientes', label: 'Clientes', icon: <User size={20} />, roles: ['Administrador', 'Vendedor'] },
-    { id: 'notas', label: 'Notas/POS', icon: <FileText size={20} />, roles: ['Administrador', 'Vendedor'] },
-    { id: 'facturacion', label: 'Facturación', icon: <ShieldCheck size={20} />, roles: ['Administrador'] },
+    { id: 'notas', label: 'Notas/POS', icon: <FileText size={20} />, roles: ['Administrador'] },
+    { id: 'credito-msi', label: 'Crédito MSI', icon: <CreditCard size={20} />, roles: ['Administrador'] },
+    { id: 'facturacion', label: 'Facturación', icon: <ShieldCheck size={20} />, roles: ['Administrador', 'Vendedor'] },
     { id: 'control-operativo', label: 'Control Operativo', icon: <ShieldCheck size={20} />, roles: ['Administrador', 'Vendedor'] },
     { id: 'inventario', label: 'Inventario', icon: <Box size={20} />, roles: ['Administrador', 'Vendedor'] },
     { id: 'analytics', label: 'Inteligencia', icon: <Activity size={20} />, roles: ['Administrador'] },
@@ -211,7 +212,7 @@ export default function App() {
     // Role specific logic
     if (role === 'Cliente') return item.id === 'ecommerce';
     if (role === 'Técnico') return item.id === 'taller' || item.id === 'dashboard';
-    if (role === 'Vendedor') return item.id !== 'taller' && item.id !== 'analytics';
+    if (role === 'Vendedor') return item.roles.includes('Vendedor') && item.id !== 'notas' && item.id !== 'credito-msi';
     return item.roles.includes(role);
   }), [role]);
 
@@ -624,6 +625,61 @@ export default function App() {
               {activeTab === 'notas' && (
                 <motion.div key="notas" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <GeneradorNotas />
+                </motion.div>
+              )}
+
+              {activeTab === 'credito-msi' && (
+                <motion.div key="credito-msi" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <div className="space-y-8 animate-in fade-in duration-500 pb-20">
+                    <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+                      <div className="flex items-center gap-6">
+                        <img src={LOGO_URL} alt="Logo" className="h-12 w-auto hidden md:block" />
+                        <div>
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 bg-brand-gold/10 border border-brand-gold/30 rounded-xl flex items-center justify-center text-brand-gold shadow-lg shadow-brand-gold/20">
+                              <CreditCard size={22} />
+                            </div>
+                            <h2 className="text-3xl font-black tracking-tight text-white italic uppercase">
+                              MÓDULO COBRANZA <span className="text-brand-gold">& CRÉDITO MSI</span>
+                            </h2>
+                          </div>
+                          <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.2em] mt-1 border-l-2 border-brand-red pl-3 font-mono">
+                            Control de meses sin intereses y terminal bancaria
+                          </p>
+                        </div>
+                      </div>
+                    </header>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      <div className="bg-brand-matte border border-brand-border rounded-[2.5rem] p-8 shadow-2xl space-y-6">
+                        <h3 className="text-lg font-black italic uppercase text-white">💰 Promociones Bancarias MSI</h3>
+                        <p className="text-xs text-slate-400">Convenios activos para diferir compras con Tarjeta de Crédito.</p>
+                        <div className="space-y-3">
+                          {[
+                            { bank: "BBVA México", msi: "3, 6, 9 Meses", rate: "Sin comisión", color: "text-blue-400 hover:border-blue-400/30" },
+                            { bank: "CitiBanamex", msi: "3, 6, 12 Meses", rate: "Sin comisión", color: "text-blue-500 hover:border-blue-500/30" },
+                            { bank: "Banorte / Santander", msi: "3, 6 Meses", rate: "Fijo 2.5%", color: "text-red-400 hover:border-red-400/30" },
+                            { bank: "American Express", msi: "6, 12 Meses", rate: "Fijo 4.8%", color: "text-cyan-400 hover:border-cyan-400/30" }
+                          ].map((promo, idx) => (
+                            <div key={idx} className={`p-4 bg-brand-dark/40 border border-brand-border/60 rounded-2xl flex items-center justify-between gap-4 transition-all hover:-translate-y-0.5 ${promo.color}`}>
+                              <div>
+                                <p className="text-sm font-black text-white">{promo.bank}</p>
+                                <p className="text-[10px] text-slate-500 uppercase font-bold mt-1 font-mono">{promo.rate}</p>
+                              </div>
+                              <span className="text-xs font-black text-brand-gold bg-brand-gold/10 border border-brand-gold/20 px-3 py-1 rounded-lg font-mono">
+                                {promo.msi}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="bg-brand-matte border border-brand-border rounded-[2.5rem] p-8 shadow-2xl space-y-6 lg:col-span-2">
+                        <h3 className="text-lg font-black italic uppercase text-white">🧮 Simulador de Liquidación MSI</h3>
+                        <p className="text-xs text-slate-400">Calcula los pagos mensuales de forma instantánea según la sucursal y la promoción seleccionada.</p>
+                        <MsiCalculator />
+                      </div>
+                    </div>
+                  </div>
                 </motion.div>
               )}
 
@@ -1193,5 +1249,54 @@ function QuickAction({ label, icon, color, onClick }: any) {
       </div>
       <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block text-center min-h-[2.5em] flex items-center leading-tight group-hover:text-white transition-colors">{label}</span>
     </button>
+  );
+}
+
+function MsiCalculator() {
+  const [monto, setMonto] = useState<number>(12000);
+  const [plazo, setPlazo] = useState<number>(6);
+  const pagoMensual = plazo > 0 ? (monto / plazo) : 0;
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 font-sans">
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Monto de Venta ($ MXN)</label>
+          <input 
+            type="number"
+            value={monto}
+            onChange={(e) => setMonto(Math.max(0, Number(e.target.value)))}
+            className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-brand-gold transition-all"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Plazo Dividido (Meses)</label>
+          <div className="flex bg-brand-dark border border-brand-border p-1 rounded-xl">
+            {[3, 6, 9, 12].map(p => (
+              <button
+                key={p}
+                onClick={() => setPlazo(p)}
+                type="button"
+                className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${
+                  plazo === p ? 'bg-brand-gold text-black' : 'text-slate-500 hover:text-white'
+                }`}
+              >
+                {p} MSI
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 bg-brand-dark rounded-3xl border border-brand-border flex flex-col md:flex-row md:items-center justify-between gap-4 font-sans">
+        <div>
+          <p className="text-[10px] font-black text-slate-550 uppercase tracking-widest mb-1">Monto de Pago Mensual</p>
+          <p className="text-3xl font-black text-brand-gold italic">${pagoMensual.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN</p>
+        </div>
+        <div className="text-left shrink-0">
+          <p className="text-[8px] font-mono text-slate-500 uppercase">Sin intereses de financiamiento</p>
+          <p className="text-xs text-green-500 font-bold uppercase mt-1">🔴 Cargo Directo Terminal SAT CFDI 4.0</p>
+        </div>
+      </div>
+    </div>
   );
 }

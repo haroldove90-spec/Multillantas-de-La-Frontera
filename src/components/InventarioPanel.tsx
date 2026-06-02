@@ -249,24 +249,11 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-4">
-                  <div className={`p-3 rounded-2xl border border-brand-border/50 relative overflow-hidden ${tire.stock < 4 ? 'bg-brand-red/5 border-brand-red/20' : 'bg-brand-dark/30'}`}>
+                <div className="mt-4">
+                  <div className={`p-3 rounded-xl border border-brand-border/50 relative overflow-hidden ${tire.stock < 4 ? 'bg-brand-red/5 border-brand-red/20' : 'bg-brand-dark/30'} w-full`}>
                     <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Stock Total</p>
                     <p className={`text-xl font-black ${tire.stock < 4 ? 'text-brand-red' : 'text-white'}`}>{tire.stock}</p>
-                    <Package size={30} className="absolute -bottom-2 -right-2 text-white/5" />
-                  </div>
-                  <div className="p-3 bg-brand-dark/30 rounded-2xl border border-brand-border/50">
-                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Precio Unitario</p>
-                    <div className="space-y-0.5">
-                      {tire.discount ? (
-                        <>
-                          <p className="text-[10px] text-slate-500 line-through">${tire.price.toLocaleString()}</p>
-                          <p className="text-xl font-black text-brand-gold">${(tire.price * (1 - tire.discount)).toLocaleString()}</p>
-                        </>
-                      ) : (
-                        <p className="text-xl font-black text-white">${tire.price.toLocaleString()}</p>
-                      )}
-                    </div>
+                    <Package size={24} className="absolute -bottom-1 -right-1 text-white/5" />
                   </div>
                 </div>
 
