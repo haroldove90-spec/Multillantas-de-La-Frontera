@@ -39,7 +39,7 @@ import { GeneradorNotas } from './components/GeneradorNotas';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { FacturacionPanel } from './components/FacturacionPanel';
 import { ControlOperativoPanel } from './components/ControlOperativoPanel';
-import { getTires } from './utils/persistentStorage';
+import { getTires, saveTires, addAuditLog } from './utils/persistentStorage';
 
 const LOGO_URL = 'https://appdesign.appdesignproyectos.com/multillantas.png';
 
@@ -147,7 +147,7 @@ export default function App() {
     { id: '6', plate: 'PBA-4433', brand: 'Mazda', model: '3', reason: 'Balanceo', status: 'recepcion', entryTime: '01:20 PM', branch: 'Centro' },
   ]);
 
-  const [tiresList, setTiresList] = useState(() => getTires());
+  const [tiresList, setTiresList] = useState<Tire[]>(() => getTires());
 
   useEffect(() => {
     const handleStateUpdate = () => {
@@ -170,6 +170,77 @@ export default function App() {
   const [cartItems, setCartItems] = useState<{ tire: Tire; quantity: number }[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isCheckoutFormOpen, setIsCheckoutFormOpen] = useState(false);
+  const [checkoutData, setCheckoutData] = useState({
+    nombre: '',
+    telefono: '',
+    placa: '',
+    sucursal: 'Frontera' as Branch,
+    metodoPago: 'Tarjeta de Crédito',
+    metodoEntrega: 'Instalación Express en taller',
+    cvv: '123',
+    numeroTarjeta: '4152 8263 9402 1128',
+    expiracion: '12/28',
+  });
+
+  const handleSimulatedPurchase = () => {
+    // Deduct stock per selected branch
+    const updatedTires = tiresList.map(t => {
+      const cartItem = cartItems.find(item => item.tire.id === t.id);
+      if (cartItem) {
+        const branchToSubtract = checkoutData.sucursal;
+        const currentStockForBranch = t.branchStocks[branchToSubtract] || 0;
+        const newStockForBranch = Math.max(0, currentStockForBranch - cartItem.quantity);
+        
+        const newBranchStocks = {
+          ...t.branchStocks,
+          [branchToSubtract]: newStockForBranch
+        };
+        const newTotalStock = Object.values(newBranchStocks).reduce((sum: number, val: any) => sum + Number(val || 0), 0);
+        
+        return {
+          ...t,
+          branchStocks: newBranchStocks,
+          stock: newTotalStock
+        };
+      }
+      return t;
+    });
+
+    // Save persistent updates
+    saveTires(updatedTires);
+    setTiresList(updatedTires);
+
+    // Register log
+    const purchaseDetails = cartItems.map(item => `${item.quantity}x ${item.tire.brand} ${item.tire.model}`).join(', ');
+    addAuditLog(
+      checkoutData.nombre || 'Cliente E-commerce',
+      'Compra Online',
+      'Tire',
+      cartItems[0]?.tire.id || 'N/A',
+      checkoutData.sucursal,
+      `Compra E-Commerce simulada. Productos: ${purchaseDetails}. Pago: ${checkoutData.metodoPago}. Instalación en: Sucursal ${checkoutData.sucursal}.`
+    );
+
+    // Auto-create service vehicle if license plate is supplied
+    if (checkoutData.placa) {
+      const newV: VehicleEntry = {
+        id: Date.now().toString(),
+        plate: checkoutData.placa.toUpperCase(),
+        brand: 'Automóvil',
+        model: 'Visita E-Commerce',
+        reason: 'Instalación de neumáticos Comprados Online',
+        status: 'recepcion',
+        entryTime: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+        branch: checkoutData.sucursal
+      };
+      setVehicles(prev => [newV, ...prev]);
+    }
+
+    // Advance to Success step
+    setIsCheckoutFormOpen(false);
+    setIsCheckoutOpen(true);
+  };
 
   const handleSaveInspection = (id: string, data: InspectionData) => {
     setVehicles(prev => prev.map(v => v.id === id ? { 
@@ -192,9 +263,7 @@ export default function App() {
       }
       return [...prev, { tire, quantity: 1 }];
     });
-    if (role === 'cliente') {
-      setIsCartOpen(true);
-    }
+    setIsCartOpen(true);
   };
 
   const navItems = useMemo(() => [
@@ -237,15 +306,15 @@ export default function App() {
   };
 
   const filteredTires = useMemo(() => {
-    return TIRES.filter(tire => {
+    return tiresList.filter(tire => {
       const rimMatch = selectedRim === 'all' || tire.rim === selectedRim;
       const brandMatch = selectedBrand === 'all' || tire.brand === selectedBrand;
       return rimMatch && brandMatch;
     });
-  }, [selectedRim, selectedBrand]);
+  }, [tiresList, selectedRim, selectedBrand]);
 
-  const brands = Array.from(new Set(TIRES.map(t => t.brand)));
-  const rims = Array.from(new Set(TIRES.map(t => t.rim))).sort((a, b) => a - b);
+  const brands = Array.from(new Set(tiresList.map(t => t.brand)));
+  const rims = Array.from(new Set(tiresList.map(t => Number(t.rim)))).sort((a: number, b: number) => a - b);
 
   // Sync active tab when role changes
   useEffect(() => {
@@ -345,19 +414,7 @@ export default function App() {
             {/* User Icon & Notifications for mobile/desktop toggle */}
             <div className="flex items-center gap-3">
               <ExchangeRateWidget />
-              {role === 'Cliente' && (
-                <button 
-                  onClick={() => setIsCartOpen(true)}
-                  className="p-2 text-slate-400 hover:text-white rounded-full bg-brand-matte border border-brand-border hover:border-brand-blue/30 transition-all relative group"
-                >
-                  <ShoppingCart size={18} />
-                  {cartItems.length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-red text-white flex items-center justify-center rounded-full text-[8px] font-black animate-pulse">
-                      {cartItems.reduce((acc, curr) => acc + curr.quantity, 0)}
-                    </span>
-                  )}
-                </button>
-              )}
+              {/* Cart is now strictly encapsulated inside the E-commerce module header */}
               <button className="p-2 text-slate-400 hover:text-white rounded-full bg-brand-matte border border-brand-border hover:border-brand-red/30 transition-all">
                 <Bell size={18} />
               </button>
@@ -717,6 +774,23 @@ export default function App() {
                           <Plus size={16} strokeWidth={3} /> Nuevo Producto
                         </button>
                       )}
+                      
+                      {/* Active Module Cart Button */}
+                      <button 
+                        onClick={() => setIsCartOpen(true)}
+                        className="bg-brand-red hover:bg-brand-red/90 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-brand-red/30 active:scale-95 transition-all relative group"
+                      >
+                        <ShoppingCart size={15} strokeWidth={2.5} />
+                        <span>🛒 Carrito de Compras</span>
+                        {cartItems.length > 0 ? (
+                          <span className="bg-brand-gold text-black rounded-full px-2 py-0.5 text-[9px] font-black leading-none ml-1 animate-pulse">
+                            {cartItems.reduce((acc, curr) => acc + curr.quantity, 0)}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 text-[9px] font-black ml-1">(Vacío)</span>
+                        )}
+                      </button>
+
                       {/* Selects with brand color focus */}
                       <select 
                         onChange={(e) => setSelectedRim(e.target.value === 'all' ? 'all' : Number(e.target.value))}
@@ -735,13 +809,13 @@ export default function App() {
                     </div>
                   </header>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6">
                     {filteredTires.map(tire => (
                       <ProductCard 
                         key={tire.id} 
                         tire={tire} 
-                        onSell={() => role === 'Cliente' ? addToCart(tire) : handleSale(tire.price * (1 - (tire.discount || 0)))} 
-                        isCustomer={role === 'Cliente'}
+                        onSell={() => addToCart(tire)} 
+                        isCustomer={true}
                       />
                     ))}
                   </div>
@@ -1036,16 +1110,245 @@ export default function App() {
                   <button 
                     onClick={() => {
                       setIsCartOpen(false);
-                      setIsCheckoutOpen(true);
+                      setIsCheckoutFormOpen(true);
                     }}
-                    className="w-full bg-brand-blue hover:bg-brand-blue/90 text-white py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-brand-blue/20 active:scale-95 transition-all"
+                    className="w-full bg-brand-red hover:bg-brand-red/90 text-white py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-brand-red/30 active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
-                    Proceder al Pago
+                    <CreditCard size={16} /> Proceder al Pago
                   </button>
                 </div>
               )}
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Checkout Interactive Form Modal */}
+      <AnimatePresence>
+        {isCheckoutFormOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} { ...{ animate: { opacity: 1 }, exit: { opacity: 0 } } as any }
+            className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md overflow-y-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 30 }} { ...{ animate: { scale: 1, y: 0 }, exit: { scale: 0.95, y: 30 } } as any }
+              className="bg-brand-matte border border-brand-border w-full max-w-4xl rounded-[2.5rem] p-6 md:p-10 text-left shadow-[0_0_80px_rgba(239,68,68,0.15)] flex flex-col md:grid md:grid-cols-12 gap-8 my-8 max-h-[90vh] overflow-y-auto"
+            >
+              {/* Header: Close button and Title */}
+              <div className="col-span-12 flex justify-between items-center border-b border-brand-border pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-brand-gold/10 rounded-xl flex items-center justify-center text-brand-gold border border-brand-gold/20 mr-1">
+                    <CreditCard size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black italic uppercase text-white tracking-tight">DATOS DE <span className="text-brand-red">CHECKOUT</span></h3>
+                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Simulación de Facturación y Entrega Premium</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsCheckoutFormOpen(false)} 
+                  className="p-2 text-slate-500 hover:text-white rounded-full bg-white/5 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* COL 1: Resumen de Pedido (5 columns) */}
+              <div className="col-span-12 md:col-span-5 space-y-6 bg-black/40 border border-brand-border/60 p-6 rounded-3xl">
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 border-l border-brand-gold pl-2">Artículos a Adquirir</h4>
+                
+                <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                  {cartItems.map((item, idx) => {
+                    const price = item.tire.discount ? item.tire.price * (1 - item.tire.discount) : item.tire.price;
+                    return (
+                      <div key={idx} className="flex gap-3 items-center p-3 bg-brand-dark border border-brand-border rounded-xl">
+                        <img src={item.tire.image} alt={item.tire.model} className="w-12 h-12 object-cover rounded-lg bg-black shrink-0 border border-brand-border" referrerPolicy="no-referrer" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-bold text-slate-400 truncate">{item.tire.brand} — {item.tire.model}</p>
+                          <p className="text-[9px] text-slate-500 font-mono">{item.tire.size} (Rin {item.tire.rim}")</p>
+                          <div className="flex justify-between items-center mt-1">
+                            <span className="text-[10px] text-brand-gold font-mono">Q: {item.quantity}</span>
+                            <span className="text-xs font-bold text-white">${price.toLocaleString()} MXN</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="border-t border-brand-border/60 pt-4 space-y-2 text-xs">
+                  {(() => {
+                    const subtotal = cartItems.reduce((acc, curr) => {
+                      const finalPrice = curr.tire.discount ? curr.tire.price * (1 - curr.tire.discount) : curr.tire.price;
+                      return acc + (finalPrice * curr.quantity);
+                    }, 0);
+                    const iva = subtotal * 0.16;
+                    const total = subtotal + iva;
+                    return (
+                      <>
+                        <div className="flex justify-between text-slate-400">
+                          <span>Subtotal</span>
+                          <span className="font-mono">${subtotal.toLocaleString()} MXN</span>
+                        </div>
+                        <div className="flex justify-between text-slate-400">
+                          <span>IVA (16% trasladado)</span>
+                          <span className="font-mono">${iva.toLocaleString()} MXN</span>
+                        </div>
+                        <div className="flex justify-between text-white font-bold text-base border-t border-brand-border/40 pt-2 mt-2">
+                          <span className="text-brand-gold">Total Final</span>
+                          <span className="font-mono text-brand-red">${total.toLocaleString()} MXN</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                <div className="p-3 bg-brand-red/5 border border-brand-red/20 rounded-xl text-[10px] text-slate-400 leading-relaxed">
+                  <span className="font-bold text-brand-red block mb-1">PROMO MSI ACTIVADA:</span>
+                  Disfruta de 3, 6, 9 y 12 Meses Sin Intereses con tarjetas Visa, MasterCard y American Express participantes.
+                </div>
+              </div>
+
+              {/* COL 2: Formulario Interactivo (7 columns) */}
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSimulatedPurchase();
+                }}
+                className="col-span-12 md:col-span-7 flex flex-col gap-5"
+              >
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 border-l border-brand-red pl-2">Detalles de Entrega e Instalación</h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 ml-1">Nombre Completo</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={checkoutData.nombre}
+                      onChange={(e) => setCheckoutData({...checkoutData, nombre: e.target.value})}
+                      className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2.5 text-xs text-white focus:border-brand-red transition-all outline-none" 
+                      placeholder="Eje: Juan Pérez" 
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 ml-1">Teléfono Móvil</label>
+                    <input 
+                      type="tel" 
+                      required
+                      value={checkoutData.telefono}
+                      onChange={(e) => setCheckoutData({...checkoutData, telefono: e.target.value})}
+                      className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2.5 text-xs text-white focus:border-brand-red transition-all outline-none font-mono" 
+                      placeholder="10 dígitos" 
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 ml-1">Placas del Vehículo</label>
+                    <input 
+                      type="text" 
+                      value={checkoutData.placa}
+                      onChange={(e) => setCheckoutData({...checkoutData, placa: e.target.value})}
+                      className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2.5 text-xs text-white focus:border-brand-red transition-all outline-none font-mono uppercase" 
+                      placeholder="ABC-1234 (Auto-Cita)" 
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 ml-1">Sucursal de Instalación</label>
+                    <select 
+                      value={checkoutData.sucursal}
+                      onChange={(e) => setCheckoutData({...checkoutData, sucursal: e.target.value as Branch})}
+                      className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2.5 text-xs text-white focus:border-brand-red transition-all outline-none"
+                    >
+                      <option value="Frontera">Sucursal Frontera (Matriz)</option>
+                      <option value="Centro">Sucursal Centro</option>
+                      <option value="Norte">Sucursal Norte</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 ml-1">Método de Pago Simulador</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['Tarjeta de Crédito', 'Transferencia SPEI', 'Pago Contra Entrega'].map(method => (
+                      <button
+                        type="button"
+                        key={method}
+                        onClick={() => setCheckoutData({...checkoutData, metodoPago: method})}
+                        className={`py-2 px-3 rounded-xl border text-[9px] font-black uppercase tracking-wider text-center transition-all ${
+                          checkoutData.metodoPago === method 
+                            ? 'bg-brand-red/10 border-brand-red text-white' 
+                            : 'bg-brand-dark border-brand-border text-slate-400 hover:text-white hover:border-white/10'
+                        }`}
+                      >
+                        {method}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {checkoutData.metodoPago === 'Tarjeta de Crédito' && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    className="p-4 bg-brand-dark border border-brand-border rounded-2xl grid grid-cols-3 gap-3"
+                  >
+                    <div className="col-span-3 text-[9px] font-black text-brand-gold uppercase tracking-widest mb-1">Pasarela segura de pago (Simulado)</div>
+                    <div className="col-span-3 space-y-1">
+                      <label className="text-[8px] font-black uppercase text-slate-500">Número de Tarjeta</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={checkoutData.numeroTarjeta}
+                        onChange={(e) => setCheckoutData({...checkoutData, numeroTarjeta: e.target.value})}
+                        className="w-full bg-brand-matte border border-brand-border rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-brand-blue font-mono" 
+                      />
+                    </div>
+                    <div className="col-span-2 space-y-1">
+                      <label className="text-[8px] font-black uppercase text-slate-500">Expiración</label>
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="MM/AA"
+                        value={checkoutData.expiracion}
+                        onChange={(e) => setCheckoutData({...checkoutData, expiracion: e.target.value})}
+                        className="w-full bg-brand-matte border border-brand-border rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-brand-blue font-mono text-center" 
+                      />
+                    </div>
+                    <div className="col-span-1 space-y-1">
+                      <label className="text-[8px] font-black uppercase text-slate-500">CVV</label>
+                      <input 
+                        type="password" 
+                        required
+                        placeholder="CVV"
+                        value={checkoutData.cvv}
+                        onChange={(e) => setCheckoutData({...checkoutData, cvv: e.target.value})}
+                        className="w-full bg-brand-matte border border-brand-border rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-brand-blue font-mono text-center" 
+                      />
+                    </div>
+                  </motion.div>
+                )}
+
+                <div className="flex gap-3 justify-end mt-4 border-t border-brand-border/60 pt-4">
+                  <button 
+                    type="button"
+                    onClick={() => setIsCheckoutFormOpen(false)}
+                    className="px-6 py-3 rounded-xl hover:bg-white/5 border border-brand-border text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    className="bg-brand-gold hover:bg-brand-gold/90 text-black px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-brand-gold/20 active:scale-95 transition-all flex items-center gap-2"
+                  >
+                    <CheckCircle2 size={14} strokeWidth={2.5} /> Confirmar Pedido
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 

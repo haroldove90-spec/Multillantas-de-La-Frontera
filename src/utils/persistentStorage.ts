@@ -13,7 +13,12 @@ export const getTires = (): Tire[] => {
     return TIRES;
   }
   try {
-    return JSON.parse(stored);
+    const parsed = JSON.parse(stored);
+    if (parsed.length < 12) {
+      localStorage.setItem(TIRES_STORAGE_KEY, JSON.stringify(TIRES));
+      return TIRES;
+    }
+    return parsed;
   } catch (e) {
     return TIRES;
   }

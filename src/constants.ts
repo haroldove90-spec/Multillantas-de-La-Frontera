@@ -13,7 +13,7 @@ export const TIRES: Tire[] = [
     stock: 12,
     branchStocks: { 'Centro': 4, 'Norte': 4, 'Frontera': 4 },
     discount: 0.1,
-    image: 'https://m.media-amazon.com/images/I/6141vzcneUL._AC_SX522_.jpg'
+    image: 'https://images.unsplash.com/photo-1578844251758-2f71da64c96f?auto=format&fit=crop&w=500&q=80'
   },
   {
     id: '2',
@@ -27,7 +27,7 @@ export const TIRES: Tire[] = [
     stock: 8,
     branchStocks: { 'Centro': 2, 'Norte': 2, 'Frontera': 4 },
     discount: 0.1,
-    image: 'https://m.media-amazon.com/images/I/615U7NOewyL._AC_SY300_SX300_QL70_ML2_.jpg'
+    image: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=500&q=80'
   },
   {
     id: '3',
@@ -40,7 +40,7 @@ export const TIRES: Tire[] = [
     price: 5600,
     stock: 3,
     branchStocks: { 'Centro': 1, 'Norte': 1, 'Frontera': 1 },
-    image: 'https://i5.walmartimages.com/asr/bc253198-fac1-4a77-b3a6-0cd3ab900844.5267cce960c39019c47a6e50a5715bc9.jpeg?odnHeight=640&odnWidth=640&odnBg=FFFFFF'
+    image: 'https://images.unsplash.com/photo-1549399542-7eed3a85d6bc?auto=format&fit=crop&w=500&q=80'
   },
   {
     id: '4',
@@ -53,7 +53,115 @@ export const TIRES: Tire[] = [
     price: 4100,
     stock: 16,
     branchStocks: { 'Centro': 8, 'Norte': 4, 'Frontera': 4 },
-    image: 'https://m.media-amazon.com/images/I/611l5mPy8KL._AC_SY300_SX300_QL70_ML2_.jpg'
+    image: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=500&q=80'
+  },
+  {
+    id: '5',
+    brand: 'Pirelli',
+    model: 'P Zero Corsa',
+    width: 255,
+    profile: 35,
+    rim: 20,
+    size: '255/35 R20',
+    price: 6200,
+    stock: 10,
+    branchStocks: { 'Centro': 3, 'Norte': 3, 'Frontera': 4 },
+    discount: 0.15,
+    image: 'https://images.unsplash.com/photo-1606577924006-27d39b132ae2?auto=format&fit=crop&w=500&q=80'
+  },
+  {
+    id: '6',
+    brand: 'Continental',
+    model: 'ExtremeContact DWS06 Plus',
+    width: 225,
+    profile: 40,
+    rim: 18,
+    size: '225/40 R18',
+    price: 3850,
+    stock: 15,
+    branchStocks: { 'Centro': 5, 'Norte': 5, 'Frontera': 5 },
+    image: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=500&q=80'
+  },
+  {
+    id: '7',
+    brand: 'Michelin',
+    model: 'Primacy 4',
+    width: 205,
+    profile: 55,
+    rim: 16,
+    size: '205/55 R16',
+    price: 2900,
+    stock: 20,
+    branchStocks: { 'Centro': 10, 'Norte': 5, 'Frontera': 5 },
+    discount: 0.05,
+    image: 'https://images.unsplash.com/photo-1525609004556-c46c7d6cf0a3?auto=format&fit=crop&w=500&q=80'
+  },
+  {
+    id: '8',
+    brand: 'Yokohama',
+    model: 'Advan Neova AD08R',
+    width: 235,
+    profile: 40,
+    rim: 18,
+    size: '235/40 R18',
+    price: 4700,
+    stock: 6,
+    branchStocks: { 'Centro': 2, 'Norte': 2, 'Frontera': 2 },
+    image: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=500&q=80'
+  },
+  {
+    id: '9',
+    brand: 'Kumho',
+    model: 'Ecsta PS31',
+    width: 195,
+    profile: 50,
+    rim: 15,
+    size: '195/50 R15',
+    price: 1850,
+    stock: 14,
+    branchStocks: { 'Centro': 6, 'Norte': 4, 'Frontera': 4 },
+    discount: 0.1,
+    image: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=500&q=80'
+  },
+  {
+    id: '10',
+    brand: 'Toyo',
+    model: 'Open Country M/T',
+    width: 285,
+    profile: 70,
+    rim: 17,
+    size: '285/70 R17',
+    price: 5400,
+    stock: 8,
+    branchStocks: { 'Centro': 2, 'Norte': 3, 'Frontera': 3 },
+    image: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=500&q=80'
+  },
+  {
+    id: '11',
+    brand: 'Hankook',
+    model: 'Ventus S1 Evo 3',
+    width: 245,
+    profile: 45,
+    rim: 18,
+    size: '245/45 R18',
+    price: 3400,
+    stock: 12,
+    branchStocks: { 'Centro': 4, 'Norte': 4, 'Frontera': 4 },
+    discount: 0.08,
+    image: 'https://images.unsplash.com/photo-1542282088-fe8426682b8f?auto=format&fit=crop&w=500&q=80'
+  },
+  {
+    id: '12',
+    brand: 'Dunlop',
+    model: 'SP Sport Maxx 050+',
+    width: 225,
+    profile: 50,
+    rim: 17,
+    size: '225/50 R17',
+    price: 3100,
+    stock: 10,
+    branchStocks: { 'Centro': 3, 'Norte': 3, 'Frontera': 4 },
+    image: 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=500&q=80'
   }
 ];
 
