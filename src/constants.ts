@@ -13,7 +13,7 @@ export const TIRES: Tire[] = [
     stock: 12,
     branchStocks: { 'Centro': 4, 'Norte': 4, 'Frontera': 4 },
     discount: 0.1,
-    image: 'https://images.unsplash.com/photo-1578844251758-2f71da64c96f?auto=format&fit=crop&w=500&q=80'
+    image: 'https://scontent2.llantas.mx/images/508X636/models/Pilot_Sport_3_5c06af0ed184f.jpg'
   },
   {
     id: '2',
@@ -27,7 +27,7 @@ export const TIRES: Tire[] = [
     stock: 8,
     branchStocks: { 'Centro': 2, 'Norte': 2, 'Frontera': 4 },
     discount: 0.1,
-    image: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=500&q=80'
+    image: 'https://scontent2.llantas.mx/images/508X636/models/Aurora_AT_698638317f909.jpg'
   },
   {
     id: '3',
@@ -40,7 +40,7 @@ export const TIRES: Tire[] = [
     price: 5600,
     stock: 3,
     branchStocks: { 'Centro': 1, 'Norte': 1, 'Frontera': 1 },
-    image: 'https://images.unsplash.com/photo-1549399542-7eed3a85d6bc?auto=format&fit=crop&w=500&q=80'
+    image: 'https://scontent2.llantas.mx/images/508X636/models/Altimax_One_62c30e6d47643.jpg'
   },
   {
     id: '4',
@@ -53,7 +53,7 @@ export const TIRES: Tire[] = [
     price: 4100,
     stock: 16,
     branchStocks: { 'Centro': 8, 'Norte': 4, 'Frontera': 4 },
-    image: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=500&q=80'
+    image: 'https://scontent2.llantas.mx/images/508X636/models/SA37_5d5d67cbdb6b1.jpg'
   },
   {
     id: '5',
@@ -67,7 +67,7 @@ export const TIRES: Tire[] = [
     stock: 10,
     branchStocks: { 'Centro': 3, 'Norte': 3, 'Frontera': 4 },
     discount: 0.15,
-    image: 'https://images.unsplash.com/photo-1606577924006-27d39b132ae2?auto=format&fit=crop&w=500&q=80'
+    image: 'https://scontent2.llantas.mx/images/508X636/models/TQ901_6740d7cf66b5c.jpg'
   },
   {
     id: '6',
@@ -80,7 +80,7 @@ export const TIRES: Tire[] = [
     price: 3850,
     stock: 15,
     branchStocks: { 'Centro': 5, 'Norte': 5, 'Frontera': 5 },
-    image: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=500&q=80'
+    image: 'https://scontent2.llantas.mx/images/508X636/models/UltraContact_67226c5f542cd.jpg'
   },
   {
     id: '7',
@@ -94,7 +94,7 @@ export const TIRES: Tire[] = [
     stock: 20,
     branchStocks: { 'Centro': 10, 'Norte': 5, 'Frontera': 5 },
     discount: 0.05,
-    image: 'https://images.unsplash.com/photo-1525609004556-c46c7d6cf0a3?auto=format&fit=crop&w=500&q=80'
+    image: 'https://scontent2.llantas.mx/images/508X636/models/RideMax_G-118_67c898eb6e7a4.jpg'
   },
   {
     id: '8',
@@ -107,7 +107,7 @@ export const TIRES: Tire[] = [
     price: 4700,
     stock: 6,
     branchStocks: { 'Centro': 2, 'Norte': 2, 'Frontera': 2 },
-    image: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=500&q=80'
+    image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRk2dTUur8Anr2rBbtlKjdB6ITks-mbSJsF_w&s'
   },
   {
     id: '9',
@@ -121,7 +121,7 @@ export const TIRES: Tire[] = [
     stock: 14,
     branchStocks: { 'Centro': 6, 'Norte': 4, 'Frontera': 4 },
     discount: 0.1,
-    image: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=500&q=80'
+    image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgmvTolYDewvffTU0sMbnLA7iiPB5C-FiChw&s'
   },
   {
     id: '10',
@@ -134,7 +134,7 @@ export const TIRES: Tire[] = [
     price: 5400,
     stock: 8,
     branchStocks: { 'Centro': 2, 'Norte': 3, 'Frontera': 3 },
-    image: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=500&q=80'
+    image: 'https://ss340.liverpool.com.mx/xl/1106482477.jpg'
   },
   {
     id: '11',
@@ -148,7 +148,7 @@ export const TIRES: Tire[] = [
     stock: 12,
     branchStocks: { 'Centro': 4, 'Norte': 4, 'Frontera': 4 },
     discount: 0.08,
-    image: 'https://images.unsplash.com/photo-1542282088-fe8426682b8f?auto=format&fit=crop&w=500&q=80'
+    image: 'https://www.virtualllantas.mx/media/catalog/product/cache/1/image/9df78eab33525d08d6e5fb8d27136e95/l/l/llanta_tornel_corona_todo_terreno.jpg'
   },
   {
     id: '12',
@@ -161,7 +161,7 @@ export const TIRES: Tire[] = [
     price: 3100,
     stock: 10,
     branchStocks: { 'Centro': 3, 'Norte': 3, 'Frontera': 4 },
-    image: 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=500&q=80'
+    image: 'https://www.costco.com.mx/medias/sys_master/products/h02/ha5/121076124745758.jpg'
   }
 ];
 

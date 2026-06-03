@@ -1,7 +1,7 @@
 import { Tire, AuditLog, Branch } from '../types';
 import { TIRES, MOCK_AUDIT } from '../constants';
 
-const TIRES_STORAGE_KEY = 'multillantas_tires_v1';
+const TIRES_STORAGE_KEY = 'multillantas_tires_v2';
 const AUDIT_STORAGE_KEY = 'multillantas_audit_v1';
 const COUNTS_STORAGE_KEY = 'multillantas_counts_v1';
 

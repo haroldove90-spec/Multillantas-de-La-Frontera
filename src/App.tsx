@@ -268,8 +268,8 @@ export default function App() {
 
   const navItems = useMemo(() => [
     { id: 'dashboard', label: 'Tablero', icon: <LayoutDashboard size={20} />, roles: ['Administrador', 'Vendedor', 'Técnico'] },
-    { id: 'ecommerce', label: 'Catálogo', icon: <ShoppingCart size={20} />, roles: ['Administrador', 'Vendedor', 'Cliente'] },
-    { id: 'taller', label: 'Control Taller', icon: <Car size={20} />, roles: ['Administrador', 'Técnico'] },
+    { id: 'ecommerce', label: 'Catálogo', icon: <ShoppingCart size={20} />, roles: ['Administrador', 'Vendedor', 'Tienda en línea'] },
+    { id: 'taller', label: 'Control Taller', icon: <Car size={20} />, roles: ['Administrador', 'Técnico', 'Cliente'] },
     { id: 'clientes', label: 'Clientes', icon: <User size={20} />, roles: ['Administrador', 'Vendedor'] },
     { id: 'notas', label: 'Notas/POS', icon: <FileText size={20} />, roles: ['Administrador'] },
     { id: 'credito-msi', label: 'Crédito MSI', icon: <CreditCard size={20} />, roles: ['Administrador'] },
@@ -279,7 +279,8 @@ export default function App() {
     { id: 'analytics', label: 'Inteligencia', icon: <Activity size={20} />, roles: ['Administrador'] },
   ].filter(item => {
     // Role specific logic
-    if (role === 'Cliente') return item.id === 'ecommerce';
+    if (role === 'Tienda en línea') return item.id === 'ecommerce';
+    if (role === 'Cliente') return item.id === 'taller';
     if (role === 'Técnico') return item.id === 'taller' || item.id === 'dashboard';
     if (role === 'Vendedor') return item.roles.includes('Vendedor') && item.id !== 'notas' && item.id !== 'credito-msi';
     return item.roles.includes(role);
@@ -318,7 +319,8 @@ export default function App() {
 
   // Sync active tab when role changes
   useEffect(() => {
-    if (role === 'Cliente') setActiveTab('ecommerce');
+    if (role === 'Tienda en línea') setActiveTab('ecommerce');
+    else if (role === 'Cliente') setActiveTab('taller');
     else if (role === 'Técnico') setActiveTab('taller');
     else if (!navItems.find(i => i.id === activeTab)) setActiveTab(navItems[0].id);
   }, [role]);
@@ -1412,7 +1414,7 @@ interface RoleSwitcherProps {
 }
 
 const RoleSwitcher: React.FC<RoleSwitcherProps> = ({ currentRole, setRole, isMobile }) => {
-  const roles: Role[] = ['Administrador', 'Vendedor', 'Técnico', 'Cliente'];
+  const roles: Role[] = ['Administrador', 'Vendedor', 'Técnico', 'Cliente', 'Tienda en línea'];
   
   return (
     <div className={`${isMobile ? 'grid grid-cols-2 gap-2' : 'flex items-center gap-1 bg-brand-matte border border-brand-border p-1 rounded-2xl shadow-xl'}`}>
