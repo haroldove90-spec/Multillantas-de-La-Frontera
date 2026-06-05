@@ -1,5 +1,5 @@
 
-export type Role = 'Administrador' | 'Vendedor' | 'Técnico' | 'Cliente' | 'Tienda en línea';
+export type Role = 'Administrador' | 'Vendedor' | 'Técnico' | 'Cliente' | 'Tienda en línea' | 'Secretaria Facturista';
 
 export type Branch = 'Centro' | 'Norte' | 'Frontera';
 

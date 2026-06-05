@@ -27,6 +27,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { ServiceNote, NoteType, NoteStatus, Cliente, Tire, Branch, NoteItem } from '../types';
 import { MOCK_NOTES, TIRES, MOCK_CLIENTES } from '../constants';
+import { getInvoices, saveInvoices, addAuditLog } from '../utils/persistentStorage';
 
 const STATUS_CONFIG: Record<NoteStatus, { icon: any, bg: string, text: string, label: string }> = {
   'Pendiente': { icon: Clock, bg: 'bg-brand-gold/10', text: 'text-brand-gold', label: 'Pendiente' },
@@ -45,6 +46,11 @@ export const GeneradorNotas: React.FC = () => {
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<ServiceNote | null>(null);
+
+  // Manual invoicing options inside POS
+  const [facturarVenta, setFacturarVenta] = useState(false);
+  const [facturarNombre, setFacturarNombre] = useState('');
+  const [facturarRfc, setFacturarRfc] = useState('');
   
   // New Note State
   const [noteForm, setNoteForm] = useState<{
@@ -192,9 +198,40 @@ export const GeneradorNotas: React.FC = () => {
     };
 
     setNotes([newNote, ...notes]);
+    
+    // Process optional manual invoicing (Requerimiento 2)
+    if (facturarVenta) {
+      const currentInvoices = getInvoices();
+      const nextId = 1000 + currentInvoices.length + 1;
+      const newInvoice = {
+        id: `F-${nextId}`,
+        uuid: Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-X-99',
+        customer: facturarNombre || selectedCliente?.nombre || 'Público General',
+        rfc: (facturarRfc || 'XAXX010101000').toUpperCase(),
+        date: new Date().toISOString().split('T')[0],
+        total: total,
+        status: 'Timbrada' as const,
+        type: 'Ingreso' as const,
+        branch: noteForm.branch
+      };
+      saveInvoices([newInvoice, ...currentInvoices]);
+
+      addAuditLog(
+        'Admin / Facturista',
+        'Factura Generada',
+        'Invoice',
+        newInvoice.id,
+        noteForm.branch,
+        `Facturación solicitada desde POS para la Nota ${newNote.folio} a nombre de ${newInvoice.customer} (${newInvoice.rfc}) por un monto de $${newInvoice.total.toLocaleString()} MXN.`
+      );
+    }
+
     setIsNoteModalOpen(false);
     // Reset form
     setNoteForm({ clienteId: '', type: 'Venta', items: [], anticipo: 0, branch: 'Frontera' });
+    setFacturarVenta(false);
+    setFacturarNombre('');
+    setFacturarRfc('');
   };
 
   const moveNote = (id: string, newStatus: NoteStatus) => {
@@ -443,6 +480,7 @@ export const GeneradorNotas: React.FC = () => {
                                             setNoteForm({...noteForm, clienteId: c.id});
                                             setShowCustomerResults(false);
                                             setCustomerSearch('');
+                                            setFacturarNombre(c.nombre);
                                         }}
                                         className="w-full px-6 py-3 text-left hover:bg-white/5 flex items-center justify-between group"
                                     >
@@ -645,6 +683,50 @@ export const GeneradorNotas: React.FC = () => {
                             </div>
                         </div>
                     )}
+
+                    {/* Sección de Facturación Manual (Requerimiento 2) */}
+                    <div className="bg-brand-dark/50 border border-brand-border/60 rounded-2xl p-4 space-y-3">
+                      <label className="flex items-center gap-3 cursor-pointer select-none">
+                        <input 
+                          type="checkbox"
+                          checked={facturarVenta}
+                          onChange={(e) => setFacturarVenta(e.target.checked)}
+                          className="w-4 h-4 rounded border-brand-border text-brand-gold bg-brand-matte focus:ring-0 focus:ring-offset-0 cursor-pointer accent-brand-gold"
+                        />
+                        <div className="flex-1">
+                          <p className="text-[10px] font-black uppercase text-white tracking-wider flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-brand-gold animate-pulse" />
+                            ¿Desea Generar Factura CFDI?
+                          </p>
+                          <p className="text-[9px] text-slate-500 italic uppercase">La venta no se factura de forma automática.</p>
+                        </div>
+                      </label>
+
+                      {facturarVenta && (
+                        <div className="space-y-3 pt-2 border-t border-brand-border/40">
+                          <div className="space-y-1 font-sans">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 pl-1">Razón Social / Nombre Comercial</label>
+                            <input 
+                              type="text"
+                              value={facturarNombre}
+                              onChange={(e) => setFacturarNombre(e.target.value)}
+                              placeholder="Nombre para Facturación"
+                              className="w-full bg-brand-matte border border-brand-border rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-brand-gold transition-all"
+                            />
+                          </div>
+                          <div className="space-y-1 font-sans">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 pl-1">RFC del Receptor</label>
+                            <input 
+                              type="text"
+                              value={facturarRfc}
+                              onChange={(e) => setFacturarRfc(e.target.value)}
+                              placeholder="Eje: XAXX010101000, ANS120512QW1"
+                              className="w-full bg-brand-matte border border-brand-border rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-brand-gold transition-all font-mono uppercase"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                     <div className="flex justify-between items-center text-lg font-black text-white py-2">
                         <span className="text-slate-500 uppercase text-[10px] tracking-widest italic">Total Estimado</span>

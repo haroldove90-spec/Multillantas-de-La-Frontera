@@ -46,16 +46,27 @@ import {
 } from '../types';
 import { 
   MOCK_FINANCE, 
-  MOCK_CXC, 
-  MOCK_CXP, 
   MOCK_AUDIT, 
   TIRES,
   MOCK_NOTES
 } from '../constants';
+import { getCXC, getCXP } from '../utils/persistentStorage';
+import { useEffect } from 'react';
 
 export const AnalyticsPanel: React.FC = () => {
   const [selectedBranch, setSelectedBranch] = useState<Branch | 'Todas'>('Todas');
   const [timeRange, setTimeRange] = useState<'day' | 'week' | 'month' | 'year'>('month');
+  const [cxcList, setCxcList] = useState(getCXC());
+  const [cxpList, setCxpList] = useState(getCXP());
+
+  useEffect(() => {
+    const handleStateUpdate = () => {
+      setCxcList(getCXC());
+      setCxpList(getCXP());
+    };
+    window.addEventListener('multillantas_state_update', handleStateUpdate);
+    return () => window.removeEventListener('multillantas_state_update', handleStateUpdate);
+  }, []);
 
   // Chart Data Preparation
   const salesByBranch = useMemo(() => [
@@ -318,7 +329,7 @@ export const AnalyticsPanel: React.FC = () => {
                         <ArrowUpRight className="text-brand-blue" size={16} />
                         <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">A Cobrar (CXC)</h4>
                     </div>
-                    {MOCK_CXC.map(cxc => (
+                    {cxcList.map(cxc => (
                         <div key={cxc.id} className="bg-brand-dark/50 border border-brand-border rounded-2xl p-4 group hover:border-brand-blue/40 transition-all">
                              <p className="text-xs font-bold text-white mb-1">{cxc.clienteNombre}</p>
                              <div className="flex justify-between items-end">
@@ -340,7 +351,7 @@ export const AnalyticsPanel: React.FC = () => {
                         <ArrowDownRight className="text-brand-red" size={16} />
                         <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">A Pagar (CXP)</h4>
                     </div>
-                    {MOCK_CXP.map(cxp => (
+                    {cxpList.map(cxp => (
                         <div key={cxp.id} className={`bg-brand-dark/50 border border-brand-border rounded-2xl p-4 group hover:border-brand-red/40 transition-all ${cxp.status === 'Vencido' ? 'border-brand-red/30 bg-brand-red/5' : ''}`}>
                              <p className="text-xs font-bold text-white mb-1 truncate">{cxp.supplier}</p>
                              <div className="flex justify-between items-end">

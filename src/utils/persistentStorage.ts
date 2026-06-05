@@ -1,5 +1,5 @@
-import { Tire, AuditLog, Branch } from '../types';
-import { TIRES, MOCK_AUDIT } from '../constants';
+import { Tire, AuditLog, Branch, AccountReceivable, AccountPayable } from '../types';
+import { TIRES, MOCK_AUDIT, MOCK_CXC, MOCK_CXP } from '../constants';
 
 const TIRES_STORAGE_KEY = 'multillantas_tires_v2';
 const AUDIT_STORAGE_KEY = 'multillantas_audit_v1';
@@ -156,4 +156,91 @@ export const updateTireStock = (
   );
   
   return true;
+};
+
+const CXC_STORAGE_KEY = 'multillantas_cxc_v1';
+const CXP_STORAGE_KEY = 'multillantas_cxp_v1';
+
+export const getCXC = (): AccountReceivable[] => {
+  if (typeof window === 'undefined') return MOCK_CXC;
+  const stored = localStorage.getItem(CXC_STORAGE_KEY);
+  if (!stored) {
+    localStorage.setItem(CXC_STORAGE_KEY, JSON.stringify(MOCK_CXC));
+    return MOCK_CXC;
+  }
+  try {
+    return JSON.parse(stored);
+  } catch (e) {
+    return MOCK_CXC;
+  }
+};
+
+export const saveCXC = (cxc: AccountReceivable[]) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(CXC_STORAGE_KEY, JSON.stringify(cxc));
+    window.dispatchEvent(new Event('multillantas_state_update'));
+  }
+};
+
+export const getCXP = (): AccountPayable[] => {
+  if (typeof window === 'undefined') return MOCK_CXP;
+  const stored = localStorage.getItem(CXP_STORAGE_KEY);
+  if (!stored) {
+    localStorage.setItem(CXP_STORAGE_KEY, JSON.stringify(MOCK_CXP));
+    return MOCK_CXP;
+  }
+  try {
+    return JSON.parse(stored);
+  } catch (e) {
+    return MOCK_CXP;
+  }
+};
+
+export const saveCXP = (cxp: AccountPayable[]) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(CXP_STORAGE_KEY, JSON.stringify(cxp));
+    window.dispatchEvent(new Event('multillantas_state_update'));
+  }
+};
+
+const INVOICES_STORAGE_KEY = 'multillantas_invoices_v1';
+
+export interface Invoice {
+  id: string;
+  uuid: string;
+  customer: string;
+  rfc: string;
+  date: string;
+  total: number;
+  status: 'Timbrada' | 'Cancelada' | 'Pendiente';
+  type: 'Ingreso' | 'Egreso';
+  branch: Branch;
+}
+
+const MOCK_INVOICES_INITIAL: Invoice[] = [
+  { id: 'F-1025', uuid: 'E48-842-X-99-4A1', customer: 'Automotriz del Norte S.A.', rfc: 'ANS120512QW1', date: '2024-05-02', total: 12450.00, status: 'Timbrada', type: 'Ingreso', branch: 'Frontera' },
+  { id: 'F-1026', uuid: 'B22-111-Y-00-5B2', customer: 'Transportes Rápidos S.A.', rfc: 'TRA880808ABC', date: '2024-05-01', total: 45600.50, status: 'Timbrada', type: 'Ingreso', branch: 'Centro' },
+  { id: 'F-1027', uuid: 'C33-222-Z-11-6C3', customer: 'Juan Pérez García', rfc: 'PEGJ800101XYZ', date: '2024-04-30', total: 3250.00, status: 'Cancelada', type: 'Ingreso', branch: 'Norte' },
+  { id: 'F-1028', uuid: 'D44-333-A-22-7D4', customer: 'Distribuidora Llantas MX', rfc: 'DLM150101GTO', date: '2024-04-29', total: 8900.00, status: 'Timbrada', type: 'Ingreso', branch: 'Frontera' },
+];
+
+export const getInvoices = (): Invoice[] => {
+  if (typeof window === 'undefined') return MOCK_INVOICES_INITIAL;
+  const stored = localStorage.getItem(INVOICES_STORAGE_KEY);
+  if (!stored) {
+    localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(MOCK_INVOICES_INITIAL));
+    return MOCK_INVOICES_INITIAL;
+  }
+  try {
+    return JSON.parse(stored);
+  } catch (e) {
+    return MOCK_INVOICES_INITIAL;
+  }
+};
+
+export const saveInvoices = (invoices: Invoice[]) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
+    window.dispatchEvent(new Event('multillantas_state_update'));
+  }
 };

@@ -36,6 +36,7 @@ import { NotaDeServicio } from './components/NotaDeServicio';
 import { ClientesPanel } from './components/ClientesPanel';
 import { InventarioPanel } from './components/InventarioPanel';
 import { GeneradorNotas } from './components/GeneradorNotas';
+import { CobranzaPanel } from './components/CobranzaPanel';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { FacturacionPanel } from './components/FacturacionPanel';
 import { ControlOperativoPanel } from './components/ControlOperativoPanel';
@@ -267,22 +268,23 @@ export default function App() {
   };
 
   const navItems = useMemo(() => [
-    { id: 'dashboard', label: 'Tablero', icon: <LayoutDashboard size={20} />, roles: ['Administrador', 'Vendedor', 'Técnico'] },
+    { id: 'dashboard', label: 'Tablero', icon: <LayoutDashboard size={20} />, roles: ['Administrador', 'Vendedor', 'Técnico', 'Secretaria Facturista'] },
     { id: 'ecommerce', label: 'Catálogo', icon: <ShoppingCart size={20} />, roles: ['Administrador', 'Vendedor', 'Tienda en línea'] },
     { id: 'taller', label: 'Control Taller', icon: <Car size={20} />, roles: ['Administrador', 'Técnico', 'Cliente'] },
-    { id: 'clientes', label: 'Clientes', icon: <User size={20} />, roles: ['Administrador', 'Vendedor'] },
-    { id: 'notas', label: 'Notas/POS', icon: <FileText size={20} />, roles: ['Administrador'] },
-    { id: 'credito-msi', label: 'Crédito MSI', icon: <CreditCard size={20} />, roles: ['Administrador'] },
-    { id: 'facturacion', label: 'Facturación', icon: <ShieldCheck size={20} />, roles: ['Administrador', 'Vendedor'] },
+    { id: 'clientes', label: 'Clientes', icon: <User size={20} />, roles: ['Administrador', 'Vendedor', 'Secretaria Facturista'] },
+    { id: 'notas', label: 'Notas/POS', icon: <FileText size={20} />, roles: ['Administrador', 'Secretaria Facturista'] },
+    { id: 'credito-msi', label: 'Cobranza y Créditos', icon: <CreditCard size={20} />, roles: ['Administrador', 'Secretaria Facturista'] },
+    { id: 'facturacion', label: 'Facturación', icon: <ShieldCheck size={20} />, roles: ['Administrador', 'Vendedor', 'Secretaria Facturista'] },
     { id: 'control-operativo', label: 'Control Operativo', icon: <ShieldCheck size={20} />, roles: ['Administrador', 'Vendedor'] },
-    { id: 'inventario', label: 'Inventario', icon: <Box size={20} />, roles: ['Administrador', 'Vendedor'] },
-    { id: 'analytics', label: 'Inteligencia', icon: <Activity size={20} />, roles: ['Administrador'] },
+    { id: 'inventario', label: 'Inventario', icon: <Box size={20} />, roles: ['Administrador', 'Vendedor', 'Secretaria Facturista'] },
+    { id: 'analytics', label: 'Inteligencia', icon: <Activity size={20} />, roles: ['Administrador', 'Secretaria Facturista'] },
   ].filter(item => {
     // Role specific logic
     if (role === 'Tienda en línea') return item.id === 'ecommerce';
     if (role === 'Cliente') return item.id === 'taller';
     if (role === 'Técnico') return item.id === 'taller' || item.id === 'dashboard';
     if (role === 'Vendedor') return item.roles.includes('Vendedor') && item.id !== 'notas' && item.id !== 'credito-msi';
+    if (role === 'Secretaria Facturista') return item.roles.includes('Secretaria Facturista');
     return item.roles.includes(role);
   }), [role]);
 
@@ -689,56 +691,7 @@ export default function App() {
 
               {activeTab === 'credito-msi' && (
                 <motion.div key="credito-msi" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                  <div className="space-y-8 animate-in fade-in duration-500 pb-20">
-                    <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-                      <div className="flex items-center gap-6">
-                        <img src={LOGO_URL} alt="Logo" className="h-12 w-auto hidden md:block" />
-                        <div>
-                          <div className="flex items-center gap-3 mb-2">
-                            <div className="w-10 h-10 bg-brand-gold/10 border border-brand-gold/30 rounded-xl flex items-center justify-center text-brand-gold shadow-lg shadow-brand-gold/20">
-                              <CreditCard size={22} />
-                            </div>
-                            <h2 className="text-3xl font-black tracking-tight text-white italic uppercase">
-                              MÓDULO COBRANZA <span className="text-brand-gold">& CRÉDITO MSI</span>
-                            </h2>
-                          </div>
-                          <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.2em] mt-1 border-l-2 border-brand-red pl-3 font-mono">
-                            Control de meses sin intereses y terminal bancaria
-                          </p>
-                        </div>
-                      </div>
-                    </header>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                      <div className="bg-brand-matte border border-brand-border rounded-[2.5rem] p-8 shadow-2xl space-y-6">
-                        <h3 className="text-lg font-black italic uppercase text-white">💰 Promociones Bancarias MSI</h3>
-                        <p className="text-xs text-slate-400">Convenios activos para diferir compras con Tarjeta de Crédito.</p>
-                        <div className="space-y-3">
-                          {[
-                            { bank: "BBVA México", msi: "3, 6, 9 Meses", rate: "Sin comisión", color: "text-blue-400 hover:border-blue-400/30" },
-                            { bank: "CitiBanamex", msi: "3, 6, 12 Meses", rate: "Sin comisión", color: "text-blue-500 hover:border-blue-500/30" },
-                            { bank: "Banorte / Santander", msi: "3, 6 Meses", rate: "Fijo 2.5%", color: "text-red-400 hover:border-red-400/30" },
-                            { bank: "American Express", msi: "6, 12 Meses", rate: "Fijo 4.8%", color: "text-cyan-400 hover:border-cyan-400/30" }
-                          ].map((promo, idx) => (
-                            <div key={idx} className={`p-4 bg-brand-dark/40 border border-brand-border/60 rounded-2xl flex items-center justify-between gap-4 transition-all hover:-translate-y-0.5 ${promo.color}`}>
-                              <div>
-                                <p className="text-sm font-black text-white">{promo.bank}</p>
-                                <p className="text-[10px] text-slate-500 uppercase font-bold mt-1 font-mono">{promo.rate}</p>
-                              </div>
-                              <span className="text-xs font-black text-brand-gold bg-brand-gold/10 border border-brand-gold/20 px-3 py-1 rounded-lg font-mono">
-                                {promo.msi}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="bg-brand-matte border border-brand-border rounded-[2.5rem] p-8 shadow-2xl space-y-6 lg:col-span-2">
-                        <h3 className="text-lg font-black italic uppercase text-white">🧮 Simulador de Liquidación MSI</h3>
-                        <p className="text-xs text-slate-400">Calcula los pagos mensuales de forma instantánea según la sucursal y la promoción seleccionada.</p>
-                        <MsiCalculator />
-                      </div>
-                    </div>
-                  </div>
+                  <CobranzaPanel userRole={role} userBranch={branch} />
                 </motion.div>
               )}
 
@@ -1414,7 +1367,7 @@ interface RoleSwitcherProps {
 }
 
 const RoleSwitcher: React.FC<RoleSwitcherProps> = ({ currentRole, setRole, isMobile }) => {
-  const roles: Role[] = ['Administrador', 'Vendedor', 'Técnico', 'Cliente', 'Tienda en línea'];
+  const roles: Role[] = ['Administrador', 'Vendedor', 'Técnico', 'Cliente', 'Tienda en línea', 'Secretaria Facturista'];
   
   return (
     <div className={`${isMobile ? 'grid grid-cols-2 gap-2' : 'flex items-center gap-1 bg-brand-matte border border-brand-border p-1 rounded-2xl shadow-xl'}`}>

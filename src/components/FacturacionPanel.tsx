@@ -17,29 +17,20 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch } from '../types';
-
-interface Invoice {
-  id: string;
-  uuid: string;
-  customer: string;
-  rfc: string;
-  date: string;
-  total: number;
-  status: 'Timbrada' | 'Cancelada' | 'Pendiente';
-  type: 'Ingreso' | 'Egreso';
-  branch: Branch;
-}
-
-const MOCK_INVOICES: Invoice[] = [
-  { id: 'F-1025', uuid: 'E48-842-X-99-4A1', customer: 'Automotriz del Norte S.A.', rfc: 'ANS120512QW1', date: '2024-05-02', total: 12450.00, status: 'Timbrada', type: 'Ingreso', branch: 'Frontera' },
-  { id: 'F-1026', uuid: 'B22-111-Y-00-5B2', customer: 'Transportes Rápidos S.A.', rfc: 'TRA880808ABC', date: '2024-05-01', total: 45600.50, status: 'Timbrada', type: 'Ingreso', branch: 'Centro' },
-  { id: 'F-1027', uuid: 'C33-222-Z-11-6C3', customer: 'Juan Pérez García', rfc: 'PEGJ800101XYZ', date: '2024-04-30', total: 3250.00, status: 'Cancelada', type: 'Ingreso', branch: 'Norte' },
-  { id: 'F-1028', uuid: 'D44-333-A-22-7D4', customer: 'Distribuidora Llantas MX', rfc: 'DLM150101GTO', date: '2024-04-29', total: 8900.00, status: 'Timbrada', type: 'Ingreso', branch: 'Frontera' },
-];
+import { getInvoices, saveInvoices, Invoice } from '../utils/persistentStorage';
+import { useEffect } from 'react';
 
 export const FacturacionPanel: React.FC = () => {
-  const [invoices] = useState<Invoice[]>(MOCK_INVOICES);
+  const [invoices, setInvoices] = useState<Invoice[]>(() => getInvoices());
   const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setInvoices(getInvoices());
+    };
+    window.addEventListener('multillantas_state_update', handleUpdate);
+    return () => window.removeEventListener('multillantas_state_update', handleUpdate);
+  }, []);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
