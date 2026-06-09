@@ -40,7 +40,8 @@ import { CobranzaPanel } from './components/CobranzaPanel';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { FacturacionPanel } from './components/FacturacionPanel';
 import { ControlOperativoPanel } from './components/ControlOperativoPanel';
-import { getTires, saveTires, addAuditLog } from './utils/persistentStorage';
+import { getTires, saveTires, addAuditLog, getLoggedUser, clearLoggedUser } from './utils/persistentStorage';
+import { LoginScreen } from './components/LoginScreen';
 
 const LOGO_URL = 'https://appdesign.appdesignproyectos.com/multillantas.png';
 
@@ -85,8 +86,22 @@ const ExchangeRateWidget = () => {
 };
 
 export default function App() {
-  const [role, setRole] = useState<Role>('Administrador');
-  const [branch, setBranch] = useState<Branch>('Frontera');
+  const [currentUser, setCurrentUser] = useState(() => getLoggedUser());
+  const [role, setRole] = useState<Role>(() => getLoggedUser()?.role || 'Administrador');
+  const [branch, setBranch] = useState<Branch>(() => getLoggedUser()?.branch || 'Frontera');
+
+  useEffect(() => {
+    if (currentUser) {
+      setRole(currentUser.role);
+      setBranch(currentUser.branch);
+    }
+  }, [currentUser]);
+
+  const handleLogout = () => {
+    clearLoggedUser();
+    setCurrentUser(null);
+  };
+
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
@@ -334,6 +349,10 @@ export default function App() {
     }
   };
 
+  if (!currentUser) {
+    return <LoginScreen onLoginSuccess={(usr) => setCurrentUser(usr)} />;
+  }
+
   return (
     <div className="min-h-screen bg-brand-dark text-slate-100 font-sans selection:bg-brand-red/30 overflow-x-hidden">
       <div className="flex flex-col lg:flex-row min-h-screen">
@@ -373,16 +392,20 @@ export default function App() {
 
             <div className="mt-auto pt-6 border-t border-brand-border space-y-4">
               <div className="flex items-center gap-3 p-3 rounded-2xl bg-brand-matte border border-brand-border">
-                <div className="w-10 h-10 rounded-full bg-brand-blue flex items-center justify-center text-white font-black shadow-lg shadow-brand-blue/20 flex-shrink-0">
-                  {role[0].toUpperCase()}
+                <div className="w-10 h-10 rounded-full bg-brand-red flex items-center justify-center text-white font-black shadow-lg shadow-brand-red/20 flex-shrink-0">
+                  {(currentUser?.name || role)[0].toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold capitalize truncate">{role}</p>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter truncate">Terminal {branch}</p>
+                  <p className="text-sm font-bold text-white truncate">{currentUser?.name || role}</p>
+                  <p className="text-[9px] text-brand-gold font-black uppercase tracking-widest truncate">{role}</p>
+                  <p className="text-[9px] text-slate-550 font-bold uppercase tracking-tighter truncate">Sucursal {branch}</p>
                 </div>
               </div>
-              <button className="flex items-center gap-3 w-full px-4 py-2 text-slate-500 hover:text-white transition-colors text-sm font-bold outline-none">
-                <LogOut size={18} /> Salir
+              <button 
+                onClick={handleLogout}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-slate-500 hover:text-white rounded-xl hover:bg-white/5 transition-all text-sm font-bold outline-none cursor-pointer"
+              >
+                <LogOut size={18} /> Cerrar Sesión
               </button>
             </div>
           </div>
@@ -924,7 +947,7 @@ export default function App() {
           <p className="text-[8px] font-bold text-slate-600 hidden md:block uppercase tracking-tighter">V 2.3.0-TOTAL-BLACK</p>
         </div>
         <div className="flex items-center gap-4">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Sesión: <span className="text-white">{role}</span></p>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Sesión: <span className="text-white">{currentUser?.name || role} ({role})</span></p>
           <div className="w-px h-4 bg-brand-border" />
           <p className="text-xs font-black text-brand-red italic tracking-tighter">${dailyRevenue.toLocaleString()} <span className="text-[9px] not-italic text-slate-600">CIERRE</span></p>
         </div>

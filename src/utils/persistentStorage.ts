@@ -1,4 +1,4 @@
-import { Tire, AuditLog, Branch, AccountReceivable, AccountPayable, Cliente } from '../types';
+import { Tire, AuditLog, Branch, AccountReceivable, AccountPayable, Cliente, SystemUser } from '../types';
 import { TIRES, MOCK_AUDIT, MOCK_CXC, MOCK_CXP, MOCK_CLIENTES } from '../constants';
 
 const TIRES_STORAGE_KEY = 'multillantas_tires_v2';
@@ -267,3 +267,74 @@ export const saveClientes = (clientes: Cliente[]) => {
     window.dispatchEvent(new Event('multillantas_state_update'));
   }
 };
+
+const USERS_STORAGE_KEY = 'multillantas_users_v1';
+const LOGGED_USER_STORAGE_KEY = 'multillantas_logged_user_v1';
+
+const INITIAL_USERS: SystemUser[] = [
+  {
+    id: 'usr-admin',
+    username: 'admin1',
+    password: 'admin123',
+    name: 'Administrador Principal',
+    role: 'Administrador',
+    branch: 'Frontera',
+    createdAt: '2026-06-09T14:20:00.000Z'
+  },
+  {
+    id: 'usr-vendedor',
+    username: 'vendedor1',
+    password: 'vendedor123',
+    name: 'Vendedor Centro',
+    role: 'Vendedor',
+    branch: 'Centro',
+    createdAt: '2026-06-09T14:20:00.000Z'
+  }
+];
+
+export const getSystemUsers = (): SystemUser[] => {
+  if (typeof window === 'undefined') return INITIAL_USERS;
+  const stored = localStorage.getItem(USERS_STORAGE_KEY);
+  if (!stored) {
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(INITIAL_USERS));
+    return INITIAL_USERS;
+  }
+  try {
+    return JSON.parse(stored);
+  } catch (e) {
+    return INITIAL_USERS;
+  }
+};
+
+export const saveSystemUsers = (users: SystemUser[]) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    window.dispatchEvent(new Event('multillantas_state_update'));
+  }
+};
+
+export const getLoggedUser = (): SystemUser | null => {
+  if (typeof window === 'undefined') return null;
+  const stored = localStorage.getItem(LOGGED_USER_STORAGE_KEY);
+  if (!stored) return null;
+  try {
+    return JSON.parse(stored);
+  } catch (e) {
+    return null;
+  }
+};
+
+export const saveLoggedUser = (user: SystemUser) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(LOGGED_USER_STORAGE_KEY, JSON.stringify(user));
+    window.dispatchEvent(new Event('multillantas_state_update'));
+  }
+};
+
+export const clearLoggedUser = () => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(LOGGED_USER_STORAGE_KEY);
+    window.dispatchEvent(new Event('multillantas_state_update'));
+  }
+};
+

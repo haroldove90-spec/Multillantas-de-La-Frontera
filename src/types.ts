@@ -3,6 +3,16 @@ export type Role = 'Administrador' | 'Vendedor' | 'Técnico' | 'Cliente' | 'Tien
 
 export type Branch = 'Centro' | 'Norte' | 'Frontera';
 
+export interface SystemUser {
+  id: string;
+  username: string;
+  password?: string;
+  name: string;
+  role: Role;
+  branch: Branch;
+  createdAt: string;
+}
+
 export interface Sucursal {
   id: string;
   nombre: Branch;
