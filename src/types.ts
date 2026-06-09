@@ -64,6 +64,8 @@ export interface VehicleEntry {
   inspection?: InspectionData;
 }
 
+export type WarehouseName = 'Bodega 1' | 'Bodega 2';
+
 export interface Tire {
   id: string;
   brand: string;
@@ -75,6 +77,7 @@ export interface Tire {
   price: number;
   stock: number; // General stock for listing, but we might need branch-specific later
   branchStocks: Record<Branch, number>;
+  warehouseStocks?: Record<WarehouseName, number>;
   discount?: number;
   image: string;
 }

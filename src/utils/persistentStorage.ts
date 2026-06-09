@@ -1,4 +1,4 @@
-import { Tire, AuditLog, Branch, AccountReceivable, AccountPayable, Cliente, SystemUser } from '../types';
+import { Tire, AuditLog, Branch, AccountReceivable, AccountPayable, Cliente, SystemUser, WarehouseName } from '../types';
 import { TIRES, MOCK_AUDIT, MOCK_CXC, MOCK_CXP, MOCK_CLIENTES } from '../constants';
 
 const TIRES_STORAGE_KEY = 'multillantas_tires_v2';
@@ -8,19 +8,36 @@ const COUNTS_STORAGE_KEY = 'multillantas_counts_v1';
 export const getTires = (): Tire[] => {
   if (typeof window === 'undefined') return TIRES;
   const stored = localStorage.getItem(TIRES_STORAGE_KEY);
+  
+  const addDefaultWarehouseStocks = (list: Tire[]): Tire[] => {
+    return list.map((t, idx) => {
+      if (!t.warehouseStocks) {
+        // Base initial values on index to be deterministic yet non-zero
+        t.warehouseStocks = {
+          'Bodega 1': (idx * 3 + 4) % 15,
+          'Bodega 2': (idx * 2 + 1) % 10
+        };
+      }
+      return t;
+    });
+  };
+
   if (!stored) {
-    localStorage.setItem(TIRES_STORAGE_KEY, JSON.stringify(TIRES));
-    return TIRES;
+    const enrichedOriginal = addDefaultWarehouseStocks(TIRES);
+    localStorage.setItem(TIRES_STORAGE_KEY, JSON.stringify(enrichedOriginal));
+    return enrichedOriginal;
   }
   try {
     const parsed = JSON.parse(stored);
     if (parsed.length < 12) {
-      localStorage.setItem(TIRES_STORAGE_KEY, JSON.stringify(TIRES));
-      return TIRES;
+      const enrichedOriginal = addDefaultWarehouseStocks(TIRES);
+      localStorage.setItem(TIRES_STORAGE_KEY, JSON.stringify(enrichedOriginal));
+      return enrichedOriginal;
     }
-    return parsed;
+    const validated = addDefaultWarehouseStocks(parsed);
+    return validated;
   } catch (e) {
-    return TIRES;
+    return addDefaultWarehouseStocks(TIRES);
   }
 };
 
