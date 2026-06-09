@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   FileText, 
   Search, 
@@ -26,8 +26,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ServiceNote, NoteType, NoteStatus, Cliente, Tire, Branch, NoteItem } from '../types';
-import { MOCK_NOTES, TIRES, MOCK_CLIENTES } from '../constants';
-import { getInvoices, saveInvoices, addAuditLog } from '../utils/persistentStorage';
+import { MOCK_NOTES, TIRES } from '../constants';
+import { getInvoices, saveInvoices, addAuditLog, getClientes, saveClientes } from '../utils/persistentStorage';
 
 const STATUS_CONFIG: Record<NoteStatus, { icon: any, bg: string, text: string, label: string }> = {
   'Pendiente': { icon: Clock, bg: 'bg-brand-gold/10', text: 'text-brand-gold', label: 'Pendiente' },
@@ -46,6 +46,25 @@ export const GeneradorNotas: React.FC = () => {
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<ServiceNote | null>(null);
+
+  // Clientes persistent state
+  const [clientes, setClientes] = useState<Cliente[]>(() => getClientes());
+  const [isQuickClientModalOpen, setIsQuickClientModalOpen] = useState(false);
+  const [quickClientForm, setQuickClientForm] = useState({
+    nombre: '',
+    rfc: '',
+    telefono: '',
+    direccion: '',
+    placa_vehiculo: ''
+  });
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setClientes(getClientes());
+    };
+    window.addEventListener('multillantas_state_update', handleUpdate);
+    return () => window.removeEventListener('multillantas_state_update', handleUpdate);
+  }, []);
 
   // Manual invoicing options inside POS
   const [facturarVenta, setFacturarVenta] = useState(false);
@@ -89,8 +108,8 @@ export const GeneradorNotas: React.FC = () => {
   }, [notes, selectedBranch]);
 
   const selectedCliente = useMemo(() => {
-    return MOCK_CLIENTES.find(c => c.id === noteForm.clienteId);
-  }, [noteForm.clienteId]);
+    return clientes.find(c => c.id === noteForm.clienteId);
+  }, [noteForm.clienteId, clientes]);
 
   const subtotal = noteForm.items.reduce((acc, item) => acc + item.total, 0);
   const total = subtotal; // Simplified for this view, maybe add taxes logic if needed
@@ -472,25 +491,56 @@ export const GeneradorNotas: React.FC = () => {
                             />
                         </div>
                         {showCustomerResults && customerSearch && (
-                            <div className="absolute top-full left-0 w-full mt-2 bg-brand-matte border border-brand-border rounded-2xl shadow-2xl z-10 max-h-60 overflow-y-auto custom-scrollbar py-2">
-                                {MOCK_CLIENTES.filter(c => c.nombre.toLowerCase().includes(customerSearch.toLowerCase()) || c.placa_vehiculo.toLowerCase().includes(customerSearch.toLowerCase())).map(c => (
-                                    <button 
-                                        key={c.id}
-                                        onClick={() => {
-                                            setNoteForm({...noteForm, clienteId: c.id});
-                                            setShowCustomerResults(false);
-                                            setCustomerSearch('');
-                                            setFacturarNombre(c.nombre);
-                                        }}
-                                        className="w-full px-6 py-3 text-left hover:bg-white/5 flex items-center justify-between group"
-                                    >
-                                        <div>
-                                            <p className="text-sm font-bold text-slate-200 group-hover:text-brand-red transition-colors">{c.nombre}</p>
-                                            <p className="text-[10px] text-slate-500 font-mono italic">{c.placa_vehiculo}</p>
-                                        </div>
-                                        <ChevronRight size={16} className="text-slate-700" />
-                                    </button>
-                                ))}
+                            <div className="absolute top-full left-0 w-full mt-2 bg-brand-matte border border-brand-border rounded-2xl shadow-2xl z-[150] max-h-64 overflow-y-auto custom-scrollbar py-2">
+                                {(() => {
+                                    const matched = clientes.filter(c => c.nombre.toLowerCase().includes(customerSearch.toLowerCase()) || c.placa_vehiculo.toLowerCase().includes(customerSearch.toLowerCase()));
+                                    return (
+                                        <>
+                                            {matched.map(c => (
+                                                <button 
+                                                    key={c.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setNoteForm({...noteForm, clienteId: c.id});
+                                                        setShowCustomerResults(false);
+                                                        setCustomerSearch('');
+                                                        setFacturarNombre(c.nombre);
+                                                    }}
+                                                    className="w-full px-6 py-3 text-left hover:bg-white/5 flex items-center justify-between group"
+                                                >
+                                                    <div>
+                                                        <p className="text-sm font-bold text-slate-200 group-hover:text-brand-red transition-colors">{c.nombre}</p>
+                                                        <p className="text-[10px] text-slate-500 font-mono italic">{c.placa_vehiculo}</p>
+                                                    </div>
+                                                    <ChevronRight size={16} className="text-slate-700" />
+                                                </button>
+                                            ))}
+                                            <button 
+                                                type="button"
+                                                onClick={() => {
+                                                    setQuickClientForm({
+                                                        nombre: customerSearch,
+                                                        rfc: '',
+                                                        telefono: '',
+                                                        direccion: '',
+                                                        placa_vehiculo: ''
+                                                    });
+                                                    setIsQuickClientModalOpen(true);
+                                                    setShowCustomerResults(false);
+                                                }}
+                                                className="w-full px-6 py-4 text-left border-t border-brand-border/40 hover:bg-white/5 flex items-center gap-3 text-brand-gold hover:text-white transition-colors duration-200"
+                                            >
+                                                <div className="w-6 h-6 rounded-full bg-brand-gold/10 flex items-center justify-center text-brand-gold">
+                                                    <Plus size={14} strokeWidth={3} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-black uppercase tracking-wider">¿No encuentras al cliente?</p>
+                                                    <p className="text-[10px] text-slate-400 font-bold uppercase pl-0.5">Registrar "{customerSearch}" como nuevo</p>
+                                                </div>
+                                            </button>
+                                        </>
+                                    );
+                                })()}
                             </div>
                         )}
                     </div>
@@ -749,6 +799,164 @@ export const GeneradorNotas: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Quick Client Registration Modal (Requerimiento de registrar cliente al vuelo) */}
+      <AnimatePresence>
+        {isQuickClientModalOpen && (
+          <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-brand-matte border border-brand-border w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(230,190,0,0.15)] flex flex-col"
+            >
+              {/* Modal Header */}
+              <div className="p-8 border-b border-brand-border flex items-center justify-between bg-black/40">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-brand-gold/10 rounded-2xl text-brand-gold border border-brand-gold/20">
+                    <User size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black italic uppercase text-white">
+                      Registro de <span className="text-brand-gold">Nuevo Cliente</span>
+                    </h3>
+                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">Crear cliente al instante para esta nota</p>
+                  </div>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setIsQuickClientModalOpen(false)}
+                  className="p-2 text-slate-500 hover:text-white rounded-full bg-white/5 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Form Content */}
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const newCliente: Cliente = {
+                    id: Math.random().toString(36).substr(2, 9),
+                    nombre: quickClientForm.nombre,
+                    rfc: quickClientForm.rfc.toUpperCase() || 'XAXX010101000',
+                    telefono: quickClientForm.telefono,
+                    direccion: quickClientForm.direccion || 'Sin dirección',
+                    placa_vehiculo: quickClientForm.placa_vehiculo.toUpperCase(),
+                    sucursal_registro_id: noteForm.branch,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  };
+
+                  const updatedList = [newCliente, ...clientes];
+                  saveClientes(updatedList);
+                  setClientes(updatedList);
+
+                  // Link newly created client unit
+                  setNoteForm({ ...noteForm, clienteId: newCliente.id });
+                  setFacturarNombre(newCliente.nombre);
+                  setFacturarRfc(newCliente.rfc || '');
+
+                  addAuditLog(
+                    'Vendedor / Admin',
+                    'Cliente Creado POS',
+                    'Cliente',
+                    newCliente.id,
+                    noteForm.branch,
+                    `Cliente "${newCliente.nombre}" con placas ${newCliente.placa_vehiculo} registrado de manera rápida desde el creador de notas de servicio.`
+                  );
+
+                  setIsQuickClientModalOpen(false);
+                }}
+                className="p-8 space-y-6"
+              >
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2 space-y-2 font-sans">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[slate-400] pl-1">Nombre Completo / Razón Social</label>
+                    <input 
+                      type="text"
+                      required
+                      placeholder="Ej. Juan Pérez"
+                      value={quickClientForm.nombre}
+                      onChange={(e) => setQuickClientForm({...quickClientForm, nombre: e.target.value})}
+                      className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand-gold transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-2 font-sans">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[slate-400] pl-1">Placa del Vehículo</label>
+                    <input 
+                      type="text"
+                      required
+                      placeholder="ABC-1234"
+                      value={quickClientForm.placa_vehiculo}
+                      onChange={(e) => setQuickClientForm({...quickClientForm, placa_vehiculo: e.target.value})}
+                      className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand-gold transition-all uppercase"
+                    />
+                  </div>
+
+                  <div className="space-y-2 font-sans">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[slate-400] pl-1">Teléfono</label>
+                    <input 
+                      type="tel"
+                      required
+                      placeholder="5512345678"
+                      value={quickClientForm.telefono}
+                      onChange={(e) => setQuickClientForm({...quickClientForm, telefono: e.target.value})}
+                      className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand-gold transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-2 font-sans">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[slate-400] pl-1 font-mono">RFC (Opcional)</label>
+                    <input 
+                      type="text"
+                      placeholder="XAXX010101000"
+                      value={quickClientForm.rfc}
+                      onChange={(e) => setQuickClientForm({...quickClientForm, rfc: e.target.value})}
+                      className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand-gold transition-all uppercase"
+                    />
+                  </div>
+
+                  <div className="space-y-2 font-sans">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[slate-400] pl-1">Sucursal Registro</label>
+                    <div className="w-full bg-brand-dark/50 border border-brand-border/60 rounded-xl px-4 py-3 text-xs text-brand-gold font-bold">
+                      {noteForm.branch.toUpperCase()}
+                    </div>
+                  </div>
+
+                  <div className="col-span-2 space-y-2 font-sans">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[slate-400] pl-1">Dirección (Opcional)</label>
+                    <input 
+                      type="text"
+                      placeholder="Calle, Número, Colonia, CP..."
+                      value={quickClientForm.direccion}
+                      onChange={(e) => setQuickClientForm({...quickClientForm, direccion: e.target.value})}
+                      className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand-gold transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4 border-t border-brand-border/40 font-mono">
+                  <button 
+                    type="button"
+                    onClick={() => setIsQuickClientModalOpen(false)}
+                    className="flex-1 px-6 py-4 bg-transparent border border-brand-border hover:bg-white/5 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-slate-500 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    className="flex-[2] px-6 py-4 bg-brand-gold hover:bg-brand-gold/90 text-black rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-brand-gold/20 active:scale-95 transition-all"
+                  >
+                    Guardar y Seleccionar
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

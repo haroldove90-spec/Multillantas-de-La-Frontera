@@ -18,9 +18,8 @@ import {
   Tag
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AccountReceivable, AccountPayable, Branch } from '../types';
-import { getCXC, saveCXC, getCXP, saveCXP, addAuditLog } from '../utils/persistentStorage';
-import { MOCK_CLIENTES } from '../constants';
+import { AccountReceivable, AccountPayable, Branch, Cliente } from '../types';
+import { getCXC, saveCXC, getCXP, saveCXP, addAuditLog, getClientes } from '../utils/persistentStorage';
 
 interface CobranzaPanelProps {
   userRole: string;
@@ -80,6 +79,7 @@ export const CobranzaPanel: React.FC<CobranzaPanelProps> = ({ userRole, userBran
   const [activeTab, setActiveTab] = useState<'cxc' | 'cxp' | 'msi'>('cxc');
   const [cxcList, setCxcList] = useState<AccountReceivable[]>([]);
   const [cxpList, setCxpList] = useState<AccountPayable[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>(() => getClientes());
   const [selectedCxc, setSelectedCxc] = useState<AccountReceivable | null>(null);
   const [selectedCxp, setSelectedCxp] = useState<AccountPayable | null>(null);
 
@@ -113,10 +113,12 @@ export const CobranzaPanel: React.FC<CobranzaPanelProps> = ({ userRole, userBran
   useEffect(() => {
     setCxcList(getCXC());
     setCxpList(getCXP());
+    setClientes(getClientes());
 
     const handleStateUpdate = () => {
       setCxcList(getCXC());
       setCxpList(getCXP());
+      setClientes(getClientes());
     };
 
     window.addEventListener('multillantas_state_update', handleStateUpdate);
@@ -140,15 +142,15 @@ export const CobranzaPanel: React.FC<CobranzaPanelProps> = ({ userRole, userBran
 
   // Client Selection helper for New Credit Creation
   const selectedCliente = useMemo(() => {
-    return MOCK_CLIENTES.find(c => c.id === cxcForm.clienteId);
-  }, [cxcForm.clienteId]);
+    return clientes.find(c => c.id === cxcForm.clienteId);
+  }, [cxcForm.clienteId, clientes]);
 
   // Handlers for CXC (Customer Credits)
   const handleCreateCxc = (e: React.FormEvent) => {
     e.preventDefault();
     if (!cxcForm.clienteId || cxcForm.total <= 0 || !cxcForm.dueDate) return;
 
-    const chosenClient = MOCK_CLIENTES.find(c => c.id === cxcForm.clienteId);
+    const chosenClient = clientes.find(c => c.id === cxcForm.clienteId);
     if (!chosenClient) return;
 
     const newCredit: AccountReceivable = {
@@ -678,7 +680,7 @@ export const CobranzaPanel: React.FC<CobranzaPanelProps> = ({ userRole, userBran
 
                   {showClientResults && clientSearch && (
                     <div className="absolute top-full left-0 w-full mt-2 bg-[#050505] border border-brand-border rounded-2xl shadow-2xl z-20 max-h-48 overflow-y-auto custom-scrollbar py-2">
-                      {MOCK_CLIENTES.filter(c => c.nombre.toLowerCase().includes(clientSearch.toLowerCase())).map(c => (
+                      {clientes.filter(c => c.nombre.toLowerCase().includes(clientSearch.toLowerCase())).map(c => (
                         <button 
                           key={c.id}
                           type="button"

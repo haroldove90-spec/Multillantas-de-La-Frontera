@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Users, 
   Search, 
@@ -16,17 +16,25 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Cliente, Branch } from '../types';
-import { MOCK_CLIENTES } from '../constants';
+import { getClientes, saveClientes } from '../utils/persistentStorage';
 
 interface ClientesPanelProps {
   onAddMessage?: (msg: string) => void;
 }
 
 export const ClientesPanel: React.FC<ClientesPanelProps> = () => {
-  const [clientes, setClientes] = useState<Cliente[]>(MOCK_CLIENTES);
+  const [clientes, setClientes] = useState<Cliente[]>(() => getClientes());
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setClientes(getClientes());
+    };
+    window.addEventListener('multillantas_state_update', handleUpdate);
+    return () => window.removeEventListener('multillantas_state_update', handleUpdate);
+  }, []);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -73,12 +81,13 @@ export const ClientesPanel: React.FC<ClientesPanelProps> = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    let updatedList: Cliente[] = [];
     if (editingCliente) {
-      setClientes(prev => prev.map(c => c.id === editingCliente.id ? {
+      updatedList = clientes.map(c => c.id === editingCliente.id ? {
         ...c,
         ...formData,
         updated_at: new Date().toISOString()
-      } : c));
+      } : c);
     } else {
       const newCliente: Cliente = {
         id: Math.random().toString(36).substr(2, 9),
@@ -86,8 +95,10 @@ export const ClientesPanel: React.FC<ClientesPanelProps> = () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
-      setClientes([newCliente, ...clientes]);
+      updatedList = [newCliente, ...clientes];
     }
+    setClientes(updatedList);
+    saveClientes(updatedList);
     closeModal();
   };
 
@@ -123,7 +134,9 @@ export const ClientesPanel: React.FC<ClientesPanelProps> = () => {
 
   const handleDelete = (id: string) => {
     if (window.confirm('¿Está seguro de eliminar este cliente?')) {
-      setClientes(prev => prev.filter(c => c.id !== id));
+      const updatedList = clientes.filter(c => c.id !== id);
+      setClientes(updatedList);
+      saveClientes(updatedList);
     }
   };
 

@@ -1,5 +1,5 @@
-import { Tire, AuditLog, Branch, AccountReceivable, AccountPayable } from '../types';
-import { TIRES, MOCK_AUDIT, MOCK_CXC, MOCK_CXP } from '../constants';
+import { Tire, AuditLog, Branch, AccountReceivable, AccountPayable, Cliente } from '../types';
+import { TIRES, MOCK_AUDIT, MOCK_CXC, MOCK_CXP, MOCK_CLIENTES } from '../constants';
 
 const TIRES_STORAGE_KEY = 'multillantas_tires_v2';
 const AUDIT_STORAGE_KEY = 'multillantas_audit_v1';
@@ -241,6 +241,29 @@ export const getInvoices = (): Invoice[] => {
 export const saveInvoices = (invoices: Invoice[]) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
+    window.dispatchEvent(new Event('multillantas_state_update'));
+  }
+};
+
+const CLIENTES_STORAGE_KEY = 'multillantas_clientes_v1';
+
+export const getClientes = (): Cliente[] => {
+  if (typeof window === 'undefined') return MOCK_CLIENTES;
+  const stored = localStorage.getItem(CLIENTES_STORAGE_KEY);
+  if (!stored) {
+    localStorage.setItem(CLIENTES_STORAGE_KEY, JSON.stringify(MOCK_CLIENTES));
+    return MOCK_CLIENTES;
+  }
+  try {
+    return JSON.parse(stored);
+  } catch (e) {
+    return MOCK_CLIENTES;
+  }
+};
+
+export const saveClientes = (clientes: Cliente[]) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(CLIENTES_STORAGE_KEY, JSON.stringify(clientes));
     window.dispatchEvent(new Event('multillantas_state_update'));
   }
 };
