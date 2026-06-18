@@ -40,7 +40,8 @@ import { CobranzaPanel } from './components/CobranzaPanel';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { FacturacionPanel } from './components/FacturacionPanel';
 import { ControlOperativoPanel } from './components/ControlOperativoPanel';
-import { getTires, saveTires, addAuditLog, getLoggedUser, clearLoggedUser } from './utils/persistentStorage';
+import { PlataformaCobroPanel } from './components/PlataformaCobroPanel';
+import { getTires, saveTires, addAuditLog, getLoggedUser, clearLoggedUser, getMercadoPagoConfig, saveMercadoPagoConfig } from './utils/persistentStorage';
 import { LoginScreen } from './components/LoginScreen';
 
 const LOGO_URL = 'https://appdesign.appdesignproyectos.com/multillantas.png';
@@ -104,6 +105,17 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Mercado Pago Config State
+  const [mpConfig, setMpConfig] = useState(() => getMercadoPagoConfig());
+
+  useEffect(() => {
+    const handleSync = () => {
+      setMpConfig(getMercadoPagoConfig());
+    };
+    window.addEventListener('multillantas_state_update', handleSync);
+    return () => window.removeEventListener('multillantas_state_update', handleSync);
+  }, []);
   
   // States for simulation (Synchronized by Branch)
   // We use useMemo to simulate different data per branch for some stats
@@ -187,6 +199,23 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isCheckoutFormOpen, setIsCheckoutFormOpen] = useState(false);
+
+  // Cart total with IVA included
+  const cartTotal = useMemo(() => {
+    const sub = cartItems.reduce((acc, curr) => {
+      const finalPrice = curr.tire.discount ? curr.tire.price * (1 - curr.tire.discount) : curr.tire.price;
+      return acc + (finalPrice * curr.quantity);
+    }, 0);
+    return sub * 1.16;
+  }, [cartItems]);
+
+  const [checkoutMpKeys, setCheckoutMpKeys] = useState({
+    publicKey: '',
+    accessToken: ''
+  });
+  const [checkoutMpSuccessMsg, setCheckoutMpSuccessMsg] = useState('');
+  const [mpInstallments, setMpInstallments] = useState('1');
+
   const [checkoutData, setCheckoutData] = useState({
     nombre: '',
     telefono: '',
@@ -293,6 +322,7 @@ export default function App() {
     { id: 'control-operativo', label: 'Control Operativo', icon: <ShieldCheck size={20} />, roles: ['Administrador', 'Vendedor'] },
     { id: 'inventario', label: 'Inventario', icon: <Box size={20} />, roles: ['Administrador', 'Vendedor', 'Secretaria Facturista'] },
     { id: 'analytics', label: 'Inteligencia', icon: <Activity size={20} />, roles: ['Administrador', 'Secretaria Facturista'] },
+    { id: 'plataforma-cobro', label: 'Plataforma de cobro', icon: <CreditCard size={20} />, roles: ['Administrador'] },
   ].filter(item => {
     // Role specific logic
     if (role === 'Tienda en línea') return item.id === 'ecommerce';
@@ -736,6 +766,12 @@ export default function App() {
                 </motion.div>
               )}
 
+              {activeTab === 'plataforma-cobro' && (
+                <motion.div key="plataforma-cobro" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <PlataformaCobroPanel />
+                </motion.div>
+              )}
+
               {activeTab === 'ecommerce' && (
                 <motion.div key="ecommerce" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10">
                   <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
@@ -1087,6 +1123,16 @@ export default function App() {
                   </div>
                   <button 
                     onClick={() => {
+                      const currentMP = getMercadoPagoConfig();
+                      setCheckoutMpKeys({
+                        publicKey: currentMP.publicKey,
+                        accessToken: currentMP.accessToken
+                      });
+                      setCheckoutMpSuccessMsg('');
+                      setCheckoutData(prev => ({
+                        ...prev,
+                        metodoPago: currentMP.isActive ? 'Mercado Pago' : 'Tarjeta de Crédito'
+                      }));
                       setIsCartOpen(false);
                       setIsCheckoutFormOpen(true);
                     }}
@@ -1248,14 +1294,14 @@ export default function App() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 ml-1">Método de Pago Simulador</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {['Tarjeta de Crédito', 'Transferencia SPEI', 'Pago Contra Entrega'].map(method => (
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 ml-1">Método de Pago Conector</label>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                    {['Mercado Pago', 'Tarjeta de Crédito', 'Transferencia SPEI', 'Pago Contra Entrega'].map(method => (
                       <button
                         type="button"
                         key={method}
                         onClick={() => setCheckoutData({...checkoutData, metodoPago: method})}
-                        className={`py-2 px-3 rounded-xl border text-[9px] font-black uppercase tracking-wider text-center transition-all ${
+                        className={`py-2 px-1.5 rounded-xl border text-[9px] font-black uppercase tracking-wider text-center transition-all ${
                           checkoutData.metodoPago === method 
                             ? 'bg-brand-red/10 border-brand-red text-white' 
                             : 'bg-brand-dark border-brand-border text-slate-400 hover:text-white hover:border-white/10'
@@ -1266,6 +1312,191 @@ export default function App() {
                     ))}
                   </div>
                 </div>
+
+                {checkoutData.metodoPago === 'Mercado Pago' && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    className="p-4 bg-brand-dark border border-brand-border rounded-2xl space-y-4"
+                  >
+                    <div className="flex items-center justify-between border-b border-brand-border/40 pb-2">
+                      <div className="flex items-center gap-1">
+                        <img 
+                          src="https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Pago-Logo-Vector.svg-1-1.png" 
+                          alt="Mercado Pago" 
+                          className="h-6 object-contain"
+                        />
+                      </div>
+                      <span className="text-[8px] font-mono text-brand-gold uppercase tracking-widest">
+                        {mpConfig.isActive ? 'CONECTOR CONFIGURADO' : 'REQUIERE CONFIGURACIÓN'}
+                      </span>
+                    </div>
+
+                    {(!mpConfig.publicKey || !mpConfig.accessToken || !mpConfig.isActive) ? (
+                      <div className="space-y-3">
+                        <div className="bg-brand-gold/5 border border-brand-gold/20 p-3 rounded-xl">
+                          <p className="text-[9px] text-brand-gold font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
+                            ⚠️ CONFIGURA MERCADO PAGO EN LA TIENDA
+                          </p>
+                          <p className="text-[9px] text-slate-400 leading-relaxed">
+                            Vendedor: Introduce tus llaves de Mercado Pago para procesar de inmediato cobros reales o simulados de tus clientes.
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-black uppercase text-slate-400">Public Key</label>
+                            <input 
+                              type="password"
+                              placeholder="Ej. APP_USR-... o TEST-..."
+                              value={checkoutMpKeys.publicKey}
+                              onChange={(e) => setCheckoutMpKeys({ ...checkoutMpKeys, publicKey: e.target.value.trim() })}
+                              className="w-full bg-[#030303] border border-brand-border rounded-xl px-3 py-1.5 text-[11px] text-white font-mono outline-none"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-black uppercase text-slate-400">Access Token</label>
+                            <input 
+                              type="password"
+                              placeholder="Ej. APP_USR-..."
+                              value={checkoutMpKeys.accessToken}
+                              onChange={(e) => setCheckoutMpKeys({ ...checkoutMpKeys, accessToken: e.target.value.trim() })}
+                              className="w-full bg-[#030303] border border-brand-border rounded-xl px-3 py-1.5 text-[11px] text-white font-mono outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        {checkoutMpSuccessMsg && (
+                          <p className="text-emerald-400 text-[9px] font-bold text-center bg-emerald-500/10 border border-emerald-500/25 p-1.5 rounded">
+                            {checkoutMpSuccessMsg}
+                          </p>
+                        )}
+
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const demoKeys = {
+                                publicKey: 'TEST-b7fb-928a-f823a4918230',
+                                accessToken: 'APP_USR-8392817452817342-9182'
+                              };
+                              setCheckoutMpKeys(demoKeys);
+                              const dummy = {
+                                publicKey: demoKeys.publicKey,
+                                accessToken: demoKeys.accessToken,
+                                isActive: true,
+                                isSandbox: true,
+                                allowMsi: true,
+                                minMsiAmount: 1000,
+                                businessName: 'Multillantas de la Frontera'
+                              };
+                              saveMercadoPagoConfig(dummy);
+                              setCheckoutMpSuccessMsg('✅ ¡Claves demo guardadas e integradas al instante!');
+                              setTimeout(() => setCheckoutMpSuccessMsg(''), 2500);
+                            }}
+                            className="flex-1 bg-[#121212] hover:bg-[#1a1a1a] border border-slate-700/60 p-2 rounded-xl text-[8px] font-black uppercase tracking-wider text-slate-300"
+                          >
+                            Autofillar Claves de Prueba
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!checkoutMpKeys.publicKey || !checkoutMpKeys.accessToken) {
+                                alert('Completa los campos de Clave Pública y Access token de Mercado Pago');
+                                return;
+                              }
+                              const saveC = {
+                                publicKey: checkoutMpKeys.publicKey,
+                                accessToken: checkoutMpKeys.accessToken,
+                                isActive: true,
+                                isSandbox: true,
+                                allowMsi: true,
+                                minMsiAmount: 1000,
+                                businessName: 'Multillantas de la Frontera'
+                              };
+                              saveMercadoPagoConfig(saveC);
+                              setCheckoutMpSuccessMsg('✅ ¡Pasarela Mercado Pago vinculada y activa!');
+                              setTimeout(() => setCheckoutMpSuccessMsg(''), 2500);
+                            }}
+                            className="flex-1 bg-brand-gold hover:bg-brand-gold/90 text-black p-2 rounded-xl text-[8px] font-black uppercase tracking-wider"
+                          >
+                            Activar Cobros
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="bg-emerald-500/5 border border-emerald-500/20 p-2.5 rounded-xl flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span className="text-[9px] font-black text-emerald-400 tracking-wider">MERCADO PAGO ACTIVO</span>
+                          </div>
+                          <span className="text-[8px] text-slate-500 font-mono">
+                            Modo: {mpConfig.isSandbox ? 'Pruebas / Sandbox' : 'Producción Real'}
+                          </span>
+                        </div>
+
+                        {mpConfig.allowMsi && cartTotal >= (mpConfig.minMsiAmount || 1000) ? (
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-black uppercase text-brand-gold tracking-widest block">Mensualidades Sin Intereses:</label>
+                            <select
+                              value={mpInstallments}
+                              onChange={(e) => setMpInstallments(e.target.value)}
+                              className="w-full bg-[#030303] border border-brand-border rounded-xl px-3 py-2 text-xs text-white font-medium focus:border-brand-gold"
+                            >
+                              <option value="1">1 pago único de ${(cartTotal).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} MXN</option>
+                              <option value="3">3 pagos mensuales sin intereses de ${(cartTotal / 3).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} MXN (Sin comisiones)</option>
+                              <option value="6">6 pagos mensuales sin intereses de ${(cartTotal / 6).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} MXN (Sin comisiones)</option>
+                              <option value="9">9 pagos mensuales sin intereses de ${(cartTotal / 9).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} MXN (Sin comisiones)</option>
+                              <option value="12">12 pagos mensuales sin intereses de ${(cartTotal / 12).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} MXN (Sin comisiones)</option>
+                            </select>
+                          </div>
+                        ) : (
+                          <div className="text-[9px] text-slate-400 bg-black/30 p-2 border border-brand-border/40 rounded-lg">
+                            Compra de ${(cartTotal).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} MXN elegible únicamente para Pago de Contado (Mínimo de MSI: ${(mpConfig.minMsiAmount || 1000).toLocaleString()} MXN).
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-3 gap-2 bg-[#050505] p-3 border border-brand-border/40 rounded-xl">
+                          <div className="col-span-3 text-[8px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Formulario Tarjeta Protegido por Mercado Pago</div>
+                          <div className="col-span-3 space-y-0.5">
+                            <label className="text-[7px] font-black uppercase text-slate-500">Número de Tarjeta</label>
+                            <input 
+                              type="text" 
+                              required
+                              value={checkoutData.numeroTarjeta}
+                              onChange={(e) => setCheckoutData({...checkoutData, numeroTarjeta: e.target.value})}
+                              className="w-full bg-brand-matte border border-brand-border rounded-lg px-2.5 py-1 text-xs text-white font-mono outline-none" 
+                            />
+                          </div>
+                          <div className="col-span-2 space-y-0.5">
+                            <label className="text-[7px] font-black uppercase text-slate-500">Expiración</label>
+                            <input 
+                              type="text" 
+                              required
+                              placeholder="MM/AA"
+                              value={checkoutData.expiracion}
+                              onChange={(e) => setCheckoutData({...checkoutData, expiracion: e.target.value})}
+                              className="w-full bg-brand-matte border border-brand-border rounded-lg px-2.5 py-1 text-xs text-white font-mono text-center outline-none" 
+                            />
+                          </div>
+                          <div className="col-span-1 space-y-0.5">
+                            <label className="text-[7px] font-black uppercase text-slate-500">CVV</label>
+                            <input 
+                              type="password" 
+                              required
+                              placeholder="00"
+                              value={checkoutData.cvv}
+                              onChange={(e) => setCheckoutData({...checkoutData, cvv: e.target.value})}
+                              className="w-full bg-brand-matte border border-brand-border rounded-lg px-2.5 py-1 text-xs text-white font-mono text-center outline-none" 
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
 
                 {checkoutData.metodoPago === 'Tarjeta de Crédito' && (
                   <motion.div 
@@ -1361,9 +1592,40 @@ export default function App() {
               <h3 className="text-3xl font-black italic uppercase text-white mb-4">ORDEN <span className="text-green-500">RECOLECTADA</span></h3>
               <p className="text-slate-400 text-sm font-medium mb-12 leading-relaxed">Su pedido ha sido procesado exitosamente. Un asesor se pondrá en contacto pronto para coordinar la instalación.</p>
               
-              <div className="bg-brand-dark rounded-3xl p-6 border border-brand-border mb-12">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">ID de Transacción</p>
-                <p className="text-xl font-mono text-brand-gold">#MP-99482-TX</p>
+              <div className="bg-brand-dark rounded-3xl p-6 border border-brand-border mb-12 space-y-3">
+                <div>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Pasarela de Pago de la Tienda</p>
+                  <div className="flex items-center justify-center gap-2 mt-1">
+                    {checkoutData.metodoPago === 'Mercado Pago' ? (
+                      <>
+                        <img 
+                          src="https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Pago-Logo-Vector.svg-1-1.png" 
+                          alt="Mercado Pago" 
+                          className="h-5 object-contain"
+                        />
+                        <span className="text-[10px] font-black text-brand-gold uppercase tracking-wider">Pago Seguro</span>
+                      </>
+                    ) : (
+                      <span className="text-xs font-bold text-white uppercase">{checkoutData.metodoPago}</span>
+                    )}
+                  </div>
+                </div>
+
+                {checkoutData.metodoPago === 'Mercado Pago' && mpInstallments !== '1' && (
+                  <div className="border-t border-brand-border/40 pt-2 text-center">
+                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Plan Diferido de Pagos</p>
+                    <p className="text-xs text-brand-gold font-bold font-mono">
+                      {mpInstallments} mensualidades de ${(cartTotal / Number(mpInstallments)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} MXN (0% interés)
+                    </p>
+                  </div>
+                )}
+
+                <div className="border-t border-brand-border/40 pt-2 text-center">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Referencia Transacción</p>
+                  <p className="text-sm font-mono text-brand-red font-bold tracking-widest uppercase">
+                    {checkoutData.metodoPago === 'Mercado Pago' ? `TX-MP-${Math.floor(100000 + Math.random() * 900000)}` : `TX-LOCAL-${Math.floor(100000 + Math.random() * 900000)}`}
+                  </p>
+                </div>
               </div>
 
               <button 

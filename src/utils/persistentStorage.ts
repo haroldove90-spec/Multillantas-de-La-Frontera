@@ -1,4 +1,4 @@
-import { Tire, AuditLog, Branch, AccountReceivable, AccountPayable, Cliente, SystemUser, WarehouseName } from '../types';
+import { Tire, AuditLog, Branch, AccountReceivable, AccountPayable, Cliente, SystemUser, WarehouseName, MercadoPagoConfig } from '../types';
 import { TIRES, MOCK_AUDIT, MOCK_CXC, MOCK_CXP, MOCK_CLIENTES } from '../constants';
 
 const TIRES_STORAGE_KEY = 'multillantas_tires_v2';
@@ -354,4 +354,38 @@ export const clearLoggedUser = () => {
     window.dispatchEvent(new Event('multillantas_state_update'));
   }
 };
+
+const MERCADO_PAGO_STORAGE_KEY = 'multillantas_mercado_pago_v1';
+
+const INITIAL_MERCADO_PAGO: MercadoPagoConfig = {
+  publicKey: '',
+  accessToken: '',
+  isActive: false,
+  isSandbox: true,
+  businessName: 'Multillantas de la Frontera',
+  allowMsi: true,
+  minMsiAmount: 1000
+};
+
+export const getMercadoPagoConfig = (): MercadoPagoConfig => {
+  if (typeof window === 'undefined') return INITIAL_MERCADO_PAGO;
+  const stored = localStorage.getItem(MERCADO_PAGO_STORAGE_KEY);
+  if (!stored) {
+    localStorage.setItem(MERCADO_PAGO_STORAGE_KEY, JSON.stringify(INITIAL_MERCADO_PAGO));
+    return INITIAL_MERCADO_PAGO;
+  }
+  try {
+    return JSON.parse(stored);
+  } catch (e) {
+    return INITIAL_MERCADO_PAGO;
+  }
+};
+
+export const saveMercadoPagoConfig = (config: MercadoPagoConfig) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(MERCADO_PAGO_STORAGE_KEY, JSON.stringify(config));
+    window.dispatchEvent(new Event('multillantas_state_update'));
+  }
+};
+
 

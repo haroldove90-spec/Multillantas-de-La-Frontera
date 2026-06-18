@@ -218,3 +218,14 @@ export interface TPMS {
   price: number;
   stock: number;
 }
+
+export interface MercadoPagoConfig {
+  publicKey: string;
+  accessToken: string;
+  isActive: boolean;
+  isSandbox: boolean;
+  businessName?: string;
+  allowMsi?: boolean; // Meses sin intereses
+  minMsiAmount?: number;
+}
+
