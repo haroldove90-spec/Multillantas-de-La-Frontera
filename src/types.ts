@@ -31,6 +31,7 @@ export interface Cliente {
   sucursal_registro_id: Branch;
   created_at: string;
   updated_at: string;
+  isActive?: boolean;
 }
 
 export type StatusColor = 'verde' | 'amarillo' | 'rojo';
@@ -80,6 +81,7 @@ export interface Tire {
   warehouseStocks?: Record<WarehouseName, number>;
   discount?: number;
   image: string;
+  isActive?: boolean;
 }
 
 export type MovementType = 'Entrada' | 'Salida';
@@ -172,6 +174,7 @@ export interface AccountReceivable {
   dueDate: string;
   lastPaymentDate?: string;
   status: 'Al Corriente' | 'Atrasado';
+  isActive?: boolean;
 }
 
 export interface AccountPayable {
@@ -181,6 +184,7 @@ export interface AccountPayable {
   dueDate: string;
   description: string;
   status: 'Pendiente' | 'Pagado' | 'Vencido';
+  isActive?: boolean;
 }
 
 export interface AuditLog {

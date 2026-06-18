@@ -18,7 +18,8 @@ import {
   ArrowRight,
   Database,
   Lock,
-  Plus
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch } from '../types';
@@ -29,7 +30,8 @@ import {
   updateTireStock, 
   savePhysicalCount, 
   getPhysicalCounts, 
-  PhysicalCountRecord 
+  PhysicalCountRecord,
+  deletePhysicalCount 
 } from '../utils/persistentStorage';
 
 export const ControlOperativoPanel: React.FC<{ currentUserName: string; currentBranch: Branch }> = ({ 
@@ -200,6 +202,20 @@ export const ControlOperativoPanel: React.FC<{ currentUserName: string; currentB
       record.branch,
       `Se aplicó ajuste fiscal automático para igualar inventarios teóricos con el conteo físico de la auditoría ID: ${record.id} en ${record.branch}.`
     );
+  };
+
+  const handleDeletePastCount = (id: string) => {
+    if (window.confirm('¿Desea eliminar de forma permanente este reporte de auditoría física?')) {
+      deletePhysicalCount(id);
+      addAuditLog(
+        currentUserName,
+        'Eliminación de Reporte Auditoría',
+        'PhysicalCountRecord',
+        id,
+        currentBranch,
+        `Se eliminó de forma permanente el reporte histórico de conteo con folio ${id}.`
+      );
+    }
   };
 
   return (
@@ -566,9 +582,9 @@ export const ControlOperativoPanel: React.FC<{ currentUserName: string; currentB
                                <p className="text-[9px] text-slate-500 uppercase mt-1">Auditado por: <span className="text-slate-300 font-bold">{pc.user}</span> • {new Date(pc.date).toLocaleString()}</p>
                             </div>
 
-                            <div className="flex items-center gap-4">
-                               <div className="text-right">
-                                  <p className="text-[8px] font-black text-slate-500 uppercase">Estado Auditoría</p>
+                            <div className="flex items-center gap-2">
+                               <div className="text-right mr-1">
+                                  <p className="text-[8px] font-black text-slate-500 uppercase font-mono">Estado Auditoría</p>
                                   {absoluteFaltantes > 0 ? (
                                     <p className="text-xs font-black text-brand-red uppercase">🔴 Faltan -{absoluteFaltantes} Unidades</p>
                                   ) : (
@@ -578,9 +594,19 @@ export const ControlOperativoPanel: React.FC<{ currentUserName: string; currentB
 
                                <button 
                                  onClick={() => handleAutoReconcile(pc)}
-                                 className="px-4 py-2 bg-brand-matte border border-brand-border hover:border-brand-gold/50 text-[10px] font-black uppercase text-brand-gold rounded-xl transition-all"
+                                 className="px-4 py-2 bg-black/40 hover:bg-brand-gold/10 border border-brand-border hover:border-brand-gold/40 text-[10px] font-black uppercase text-brand-gold rounded-xl transition-all"
+                                 title="Conciliar Stock"
                                >
                                  Conciliar Stock
+                               </button>
+
+                               <button 
+                                 type="button"
+                                 onClick={() => handleDeletePastCount(pc.id)}
+                                 className="p-2.5 bg-black/40 border border-brand-border hover:border-brand-red/40 text-slate-500 hover:text-brand-red rounded-xl transition-all"
+                                 title="Eliminar Reporte"
+                               >
+                                 <Trash2 size={13} />
                                </button>
                             </div>
                           </div>

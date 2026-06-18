@@ -15,7 +15,10 @@ import {
   Percent,
   Clock,
   ShieldCheck,
-  Tag
+  Tag,
+  Edit2,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AccountReceivable, AccountPayable, Branch, Cliente } from '../types';
@@ -108,6 +111,145 @@ export const CobranzaPanel: React.FC<CobranzaPanelProps> = ({ userRole, userBran
   // Pay/Abonar Inputs
   const [cxcAbonoAmount, setCxcAbonoAmount] = useState<string>('');
   const [cxpAbonoAmount, setCxpAbonoAmount] = useState<string>('');
+
+  // CXC / CXP Edit Mode States
+  const [isEditingCxc, setIsEditingCxc] = useState(false);
+  const [editCxcData, setEditCxcData] = useState({
+    noteId: '',
+    total: 0,
+    dueDate: '',
+    isActive: true
+  });
+
+  const [isEditingCxp, setIsEditingCxp] = useState(false);
+  const [editCxpData, setEditCxpData] = useState({
+    supplier: '',
+    amount: 0,
+    dueDate: '',
+    description: '',
+    isActive: true
+  });
+
+  const startEditingCxc = () => {
+    if (!selectedCxc) return;
+    setEditCxcData({
+      noteId: selectedCxc.noteId,
+      total: selectedCxc.total,
+      dueDate: selectedCxc.dueDate ? selectedCxc.dueDate.substring(0, 10) : '',
+      isActive: selectedCxc.isActive !== false
+    });
+    setIsEditingCxc(true);
+  };
+
+  const saveEditedCxc = () => {
+    if (!selectedCxc) return;
+    const updated = cxcList.map(c => c.id === selectedCxc.id ? {
+      ...c,
+      noteId: editCxcData.noteId,
+      total: Number(editCxcData.total),
+      saldo: Number(editCxcData.total) - (c.total - c.saldo), // maintain correct outstanding payment diff
+      dueDate: new Date(editCxcData.dueDate + 'T12:00:00').toISOString(),
+      isActive: editCxcData.isActive
+    } : c);
+    saveCXC(updated);
+    setIsEditingCxc(false);
+    
+    // Audit Log
+    addAuditLog(
+      userRole,
+      'Edición Crédito',
+      'AccountReceivable',
+      selectedCxc.id,
+      userBranch,
+      `Crédito folio ${selectedCxc.id} modificado. Nuevo total: $${editCxcData.total.toLocaleString()} MXN.`
+    );
+  };
+
+  const deleteCxc = (id: string) => {
+    if (window.confirm('¿Está seguro de eliminar este registro de crédito de forma permanente?')) {
+      const updated = cxcList.filter(c => c.id !== id);
+      saveCXC(updated);
+      setSelectedCxc(null);
+      
+      addAuditLog(
+        userRole,
+        'Eliminación Crédito',
+        'AccountReceivable',
+        id,
+        userBranch,
+        `Se eliminó permanentemente el crédito con id ${id}.`
+      );
+    }
+  };
+
+  const toggleActiveCxc = (id: string) => {
+    const updated = cxcList.map(c => c.id === id ? {
+      ...c,
+      isActive: c.isActive === false
+    } : c);
+    saveCXC(updated);
+  };
+
+  const startEditingCxp = () => {
+    if (!selectedCxp) return;
+    setEditCxpData({
+      supplier: selectedCxp.supplier,
+      amount: selectedCxp.amount,
+      dueDate: selectedCxp.dueDate ? selectedCxp.dueDate.substring(0, 10) : '',
+      description: selectedCxp.description || '',
+      isActive: selectedCxp.isActive !== false
+    });
+    setIsEditingCxp(true);
+  };
+
+  const saveEditedCxp = () => {
+    if (!selectedCxp) return;
+    const updated = cxpList.map(c => c.id === selectedCxp.id ? {
+      ...c,
+      supplier: editCxpData.supplier,
+      amount: Number(editCxpData.amount),
+      dueDate: new Date(editCxpData.dueDate + 'T12:00:00').toISOString(),
+      description: editCxpData.description,
+      isActive: editCxpData.isActive
+    } : c);
+    saveCXP(updated);
+    setIsEditingCxp(false);
+
+    // Audit Log
+    addAuditLog(
+      userRole,
+      'Edición Cuenta por Pagar',
+      'AccountPayable',
+      selectedCxp.id,
+      userBranch,
+      `Cuenta por pagar ${selectedCxp.id} modificada. Nuevo monto: $${editCxpData.amount.toLocaleString()} MXN.`
+    );
+  };
+
+  const deleteCxp = (id: string) => {
+    if (window.confirm('¿Está seguro de eliminar esta cuenta por pagar de forma permanente?')) {
+      const updated = cxpList.filter(c => c.id !== id);
+      saveCXP(updated);
+      setSelectedCxp(null);
+
+      addAuditLog(
+        userRole,
+        'Eliminación Cuenta por Pagar',
+        'AccountPayable',
+        id,
+        userBranch,
+        `Se eliminó permanentemente la cuenta por pagar con id ${id}.`
+      );
+    }
+  };
+
+  const toggleActiveCxp = (id: string) => {
+    const updated = cxpList.map(c => c.id === id ? {
+      ...c,
+      isActive: c.isActive === false
+    } : c);
+    saveCXP(updated);
+  };
 
   // Load and refresh lists from localStorage
   useEffect(() => {
@@ -404,6 +546,8 @@ export const CobranzaPanel: React.FC<CobranzaPanelProps> = ({ userRole, userBran
                     key={cxc.id} 
                     onClick={() => setSelectedCxc(cxc)}
                     className={`w-full text-left p-6 rounded-3xl border transition-all flex items-center justify-between group ${
+                      cxc.isActive === false ? 'opacity-40 saturate-50 bg-[#0d0d0d]' : ''
+                    } ${
                       selectedCxc?.id === cxc.id 
                         ? 'bg-brand-red/10 border-brand-red' 
                         : 'bg-brand-matte border-brand-border/60 hover:border-brand-gold/40'
@@ -450,6 +594,8 @@ export const CobranzaPanel: React.FC<CobranzaPanelProps> = ({ userRole, userBran
                     key={cxp.id} 
                     onClick={() => setSelectedCxp(cxp)}
                     className={`w-full text-left p-6 rounded-3xl border transition-all flex items-center justify-between group ${
+                      cxp.isActive === false ? 'opacity-40 saturate-50 bg-[#0d0d0d]' : ''
+                    } ${
                       selectedCxp?.id === cxp.id 
                         ? 'bg-brand-red/10 border-brand-red' 
                         : 'bg-brand-matte border-brand-border/60 hover:border-brand-red/40'
@@ -492,39 +638,131 @@ export const CobranzaPanel: React.FC<CobranzaPanelProps> = ({ userRole, userBran
                 animate={{ opacity: 1, scale: 1 }}
                 className="bg-brand-matte border border-brand-border/60 rounded-[2.5rem] p-8 shadow-2xl space-y-6"
               >
-                <div>
-                  <span className="text-[8px] font-black text-brand-gold bg-brand-gold/10 border border-brand-gold/20 px-2 py-1 rounded-xl uppercase tracking-widest">Perfil de Crédito Cliente</span>
-                  <h3 className="text-2xl font-black italic uppercase text-white mt-4">{selectedCxc.clienteNombre}</h3>
-                  <p className="text-[10px] font-mono text-slate-500">ID Crédito: {selectedCxc.id}</p>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-[8px] font-black text-brand-gold bg-brand-gold/10 border border-brand-gold/20 px-2 py-1 rounded-xl uppercase tracking-widest">Perfil de Crédito Cliente</span>
+                    <h3 className="text-2xl font-black italic uppercase text-white mt-4">{selectedCxc.clienteNombre}</h3>
+                    <p className="text-[10px] font-mono text-slate-500">ID Crédito: {selectedCxc.id}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${selectedCxc.isActive !== false ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-brand-red/10 text-brand-red border border-brand-red/20 animate-pulse'}`}>
+                        {selectedCxc.isActive !== false ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-1.5 bg-brand-dark/40 p-1.5 rounded-2xl border border-brand-border/60">
+                    {!isEditingCxc ? (
+                      <>
+                        <button 
+                          onClick={startEditingCxc}
+                          className="p-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"
+                          title="Editar Crédito"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button 
+                          onClick={() => toggleActiveCxc(selectedCxc.id)}
+                          className="p-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"
+                          title={selectedCxc.isActive !== false ? "Desactivar Crédito" : "Activar Crédito"}
+                        >
+                          {selectedCxc.isActive !== false ? <EyeOff size={14} className="text-brand-red" /> : <Eye size={14} className="text-green-400" />}
+                        </button>
+                        <button 
+                          onClick={() => deleteCxc(selectedCxc.id)}
+                          className="p-2.5 text-slate-400 hover:text-brand-red hover:bg-[#ff0000]/5 rounded-xl transition-all"
+                          title="Borrar Crédito"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    ) : (
+                      <div className="flex gap-1">
+                        <button 
+                          onClick={() => setIsEditingCxc(false)}
+                          className="px-3 py-1.5 text-[9px] font-bold text-slate-400 hover:text-white rounded-lg transition-all"
+                        >
+                          Cancelar
+                        </button>
+                        <button 
+                          onClick={saveEditedCxc}
+                          className="px-3 py-1.5 text-[9px] font-black bg-brand-gold text-black rounded-lg transition-all"
+                        >
+                          Guardar
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="bg-brand-dark/40 border border-brand-border/40 rounded-2xl p-4 divide-y divide-brand-border/20 space-y-3 text-xs">
-                  <div className="flex justify-between py-2">
-                    <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Saldo outstanding</span>
-                    <span className="font-extrabold text-brand-gold text-sm">${selectedCxc.saldo.toLocaleString()} MXN</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Financiamiento Concedido</span>
-                    <span className="font-bold text-white">${selectedCxc.total.toLocaleString()} MXN</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Folio Relacionado</span>
-                    <span className="font-mono text-white">{selectedCxc.noteId}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Siguiente Vencimiento</span>
-                    <span className="font-bold text-brand-red flex items-center gap-1">
-                      <Calendar size={12} />
-                      {new Date(selectedCxc.dueDate).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {selectedCxc.lastPaymentDate && (
-                    <div className="flex justify-between py-2">
-                      <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Último Abono Recibido</span>
-                      <span className="text-slate-400">{new Date(selectedCxc.lastPaymentDate).toLocaleDateString()}</span>
+                {isEditingCxc ? (
+                  <div className="space-y-4 bg-brand-dark/20 border border-brand-border p-5 rounded-3xl">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-slate-400 block font-mono pl-1">Folio Operativo</label>
+                      <input 
+                        type="text"
+                        value={editCxcData.noteId}
+                        onChange={(e) => setEditCxcData({ ...editCxcData, noteId: e.target.value })}
+                        className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-brand-gold"
+                      />
                     </div>
-                  )}
-                </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-slate-400 block font-mono pl-1">Financiamiento Concedido ($)</label>
+                      <input 
+                        type="number"
+                        value={editCxcData.total}
+                        onChange={(e) => setEditCxcData({ ...editCxcData, total: Number(e.target.value) || 0 })}
+                        className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-brand-gold"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-slate-400 block font-mono pl-1">Fecha Vencimiento</label>
+                      <input 
+                        type="date"
+                        value={editCxcData.dueDate}
+                        onChange={(e) => setEditCxcData({ ...editCxcData, dueDate: e.target.value })}
+                        className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-brand-gold"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-black/45 border border-brand-border rounded-xl">
+                      <span className="text-[9px] font-black uppercase text-slate-300 font-mono">Estatus Activo</span>
+                      <button 
+                        type="button"
+                        onClick={() => setEditCxcData({ ...editCxcData, isActive: !editCxcData.isActive })}
+                        className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${editCxcData.isActive ? 'bg-green-500/10 text-green-400 border border-green-500/25' : 'bg-brand-red/10 text-brand-red border border-brand-red/25'}`}
+                      >
+                        {editCxcData.isActive ? 'Activo' : 'Inactivo'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-brand-dark/40 border border-brand-border/40 rounded-2xl p-4 divide-y divide-brand-border/20 space-y-3 text-xs">
+                    <div className="flex justify-between py-2">
+                      <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Saldo outstanding</span>
+                      <span className="font-extrabold text-brand-gold text-sm">${selectedCxc.saldo.toLocaleString()} MXN</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Financiamiento Concedido</span>
+                      <span className="font-bold text-white">${selectedCxc.total.toLocaleString()} MXN</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Folio Relacionado</span>
+                      <span className="font-mono text-white">{selectedCxc.noteId}</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Siguiente Vencimiento</span>
+                      <span className="font-bold text-brand-red flex items-center gap-1">
+                        <Calendar size={12} />
+                        {new Date(selectedCxc.dueDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {selectedCxc.lastPaymentDate && (
+                      <div className="flex justify-between py-2">
+                        <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Último Abono Recibido</span>
+                        <span className="text-slate-400">{new Date(selectedCxc.lastPaymentDate).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* (5) Choose payment amount / abonar */}
                 <div className="space-y-4 pt-4 border-t border-brand-border/30">
@@ -564,33 +802,134 @@ export const CobranzaPanel: React.FC<CobranzaPanelProps> = ({ userRole, userBran
                 animate={{ opacity: 1, scale: 1 }}
                 className="bg-brand-matte border border-brand-border/60 rounded-[2.5rem] p-8 shadow-2xl space-y-6"
               >
-                <div>
-                  <span className="text-[8px] font-black text-brand-red bg-brand-red/10 border border-brand-red/20 px-2 py-1 rounded-xl uppercase tracking-widest">Cuenta Proveedor CXP</span>
-                  <h3 className="text-2xl font-black italic uppercase text-white mt-4">{selectedCxp.supplier}</h3>
-                  <p className="text-[10px] font-mono text-slate-500">ID Payable: {selectedCxp.id}</p>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-[8px] font-black text-brand-red bg-brand-red/10 border border-brand-red/20 px-2 py-1 rounded-xl uppercase tracking-widest">Cuenta Proveedor CXP</span>
+                    <h3 className="text-2xl font-black italic uppercase text-white mt-4">{selectedCxp.supplier}</h3>
+                    <p className="text-[10px] font-mono text-slate-500">ID Payable: {selectedCxp.id}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${selectedCxp.isActive !== false ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-brand-red/10 text-brand-red border border-brand-red/20 animate-pulse'}`}>
+                        {selectedCxp.isActive !== false ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-1.5 bg-brand-dark/40 p-1.5 rounded-2xl border border-brand-border/60">
+                    {!isEditingCxp ? (
+                      <>
+                        <button 
+                          onClick={startEditingCxp}
+                          className="p-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"
+                          title="Editar CXP"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button 
+                          onClick={() => toggleActiveCxp(selectedCxp.id)}
+                          className="p-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"
+                          title={selectedCxp.isActive !== false ? "Desactivar Cuenta" : "Activar Cuenta"}
+                        >
+                          {selectedCxp.isActive !== false ? <EyeOff size={14} className="text-brand-red" /> : <Eye size={14} className="text-green-400" />}
+                        </button>
+                        <button 
+                          onClick={() => deleteCxp(selectedCxp.id)}
+                          className="p-2.5 text-slate-400 hover:text-brand-red hover:bg-[#ff0000]/5 rounded-xl transition-all"
+                          title="Borrar Cuenta"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    ) : (
+                      <div className="flex gap-1">
+                        <button 
+                          onClick={() => setIsEditingCxp(false)}
+                          className="px-3 py-1.5 text-[9px] font-bold text-slate-400 hover:text-white rounded-lg transition-all"
+                        >
+                          Cancelar
+                        </button>
+                        <button 
+                          onClick={saveEditedCxp}
+                          className="px-3 py-1.5 text-[9px] font-black bg-brand-red text-white hover:bg-brand-red/90 rounded-lg transition-all"
+                        >
+                          Guardar
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="bg-brand-dark/40 border border-brand-border/40 rounded-2xl p-4 divide-y divide-brand-border/20 space-y-3 text-xs">
-                  <div className="flex justify-between py-2">
-                    <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Saldo Pendiente</span>
-                    <span className="font-extrabold text-brand-red text-sm">${selectedCxp.amount.toLocaleString()} MXN</span>
+                {isEditingCxp ? (
+                  <div className="space-y-4 bg-brand-dark/20 border border-brand-border p-5 rounded-3xl">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-slate-400 block font-mono pl-1">Proveedor</label>
+                      <input 
+                        type="text"
+                        value={editCxpData.supplier}
+                        onChange={(e) => setEditCxpData({ ...editCxpData, supplier: e.target.value })}
+                        className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-brand-red"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-slate-400 block font-mono pl-1">Monto Total ($)</label>
+                      <input 
+                        type="number"
+                        value={editCxpData.amount}
+                        onChange={(e) => setEditCxpData({ ...editCxpData, amount: Number(e.target.value) || 0 })}
+                        className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-brand-red"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-slate-400 block font-mono pl-1">Fecha Compromiso</label>
+                      <input 
+                        type="date"
+                        value={editCxpData.dueDate}
+                        onChange={(e) => setEditCxpData({ ...editCxpData, dueDate: e.target.value })}
+                        className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-brand-red"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-slate-400 block font-mono pl-1">Descripción / Concepto</label>
+                      <input 
+                        type="text"
+                        value={editCxpData.description}
+                        onChange={(e) => setEditCxpData({ ...editCxpData, description: e.target.value })}
+                        className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-brand-red"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-black/45 border border-brand-border rounded-xl">
+                      <span className="text-[9px] font-black uppercase text-slate-300 font-mono">Estatus Activo</span>
+                      <button 
+                        type="button"
+                        onClick={() => setEditCxpData({ ...editCxpData, isActive: !editCxpData.isActive })}
+                        className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${editCxpData.isActive ? 'bg-green-500/10 text-green-400 border border-green-500/25' : 'bg-brand-red/10 text-brand-red border border-brand-red/25'}`}
+                      >
+                        {editCxpData.isActive ? 'Activo' : 'Inactivo'}
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Fecha Compromiso</span>
-                    <span className="font-bold text-white flex items-center gap-1">
-                      <Calendar size={12} />
-                      {new Date(selectedCxp.dueDate).toLocaleDateString()}
-                    </span>
+                ) : (
+                  <div className="bg-brand-dark/40 border border-brand-border/40 rounded-2xl p-4 divide-y divide-brand-border/20 space-y-3 text-xs">
+                    <div className="flex justify-between py-2">
+                      <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Saldo Pendiente</span>
+                      <span className="font-extrabold text-brand-red text-sm">${selectedCxp.amount.toLocaleString()} MXN</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Fecha Compromiso</span>
+                      <span className="font-bold text-white flex items-center gap-1">
+                        <Calendar size={12} />
+                        {new Date(selectedCxp.dueDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Descripción</span>
+                      <span className="text-slate-400 truncate max-w-[150px]">{selectedCxp.description}</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Estado</span>
+                      <span className={`font-black uppercase text-[10px] ${selectedCxp.status === 'Pagado' ? 'text-green-400' : 'text-brand-gold'}`}>{selectedCxp.status}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Descripción</span>
-                    <span className="text-slate-400 truncate max-w-[150px]">{selectedCxp.description}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Estado</span>
-                    <span className={`font-black uppercase text-[10px] ${selectedCxp.status === 'Pagado' ? 'text-green-400' : 'text-brand-gold'}`}>{selectedCxp.status}</span>
-                  </div>
-                </div>
+                )}
 
                 {/* (6) Choose payment amount / abonar to supplier or liquidate */}
                 <div className="space-y-4 pt-4 border-t border-brand-border/30">

@@ -23,7 +23,10 @@ import {
   User,
   Info,
   Layers,
-  Sparkles
+  Sparkles,
+  Edit2,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -86,6 +89,24 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
   // Modals state
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Tire | null>(null);
+  const [productForm, setProductForm] = useState({
+    brand: '',
+    model: '',
+    width: 205,
+    profile: 55,
+    rim: 16,
+    price: 1500,
+    discount: 0,
+    image: '',
+    isActive: true,
+    centroStock: 0,
+    norteStock: 0,
+    fronteraStock: 0,
+    bodega1Stock: 0,
+    bodega2Stock: 0
+  });
 
   // States for individual card direct registration
   const [editingTireId, setEditingTireId] = useState<string | null>(null);
@@ -157,6 +178,206 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
   };
 
   const isAdmin = userRole === 'Administrador';
+
+  const handleOpenProductModal = (tire?: Tire) => {
+    if (tire) {
+      setEditingProduct(tire);
+      setProductForm({
+        brand: tire.brand,
+        model: tire.model,
+        width: tire.width || 205,
+        profile: tire.profile || 55,
+        rim: tire.rim || 16,
+        price: tire.price || 0,
+        discount: tire.discount || 0,
+        image: tire.image || '',
+        isActive: tire.isActive !== false,
+        centroStock: tire.branchStocks?.['Centro'] || 0,
+        norteStock: tire.branchStocks?.['Norte'] || 0,
+        fronteraStock: tire.branchStocks?.['Frontera'] || 0,
+        bodega1Stock: tire.warehouseStocks?.['Bodega 1'] || 0,
+        bodega2Stock: tire.warehouseStocks?.['Bodega 2'] || 0
+      });
+    } else {
+      setEditingProduct(null);
+      setProductForm({
+        brand: '',
+        model: '',
+        width: 205,
+        profile: 55,
+        rim: 16,
+        price: 1500,
+        discount: 0,
+        image: '',
+        isActive: true,
+        centroStock: 4,
+        norteStock: 4,
+        fronteraStock: 4,
+        bodega1Stock: 10,
+        bodega2Stock: 10
+      });
+    }
+    setIsProductModalOpen(true);
+  };
+
+  const handleDeleteTire = (tireId: string) => {
+    if (window.confirm('¿Está seguro de eliminar este neumático permanentemente en el sistema?')) {
+      const tire = tires.find(t => t.id === tireId);
+      const updated = tires.filter(t => t.id !== tireId);
+      setTires(updated);
+      saveTires(updated);
+      
+      addAndSaveNotification(
+        'outgoing', 
+        `Neumático Eliminado`, 
+        `Se eliminó del catálogo ${tire?.brand || ''} ${tire?.model || ''}.`
+      );
+
+      addAuditLog(
+        userRole,
+        'Eliminación de Producto',
+        'Tire',
+        tireId,
+        'Frontera',
+        `Se eliminó permanentemente el neumático ${tire?.brand || ''} ${tire?.model || ''} del sistema.`
+      );
+    }
+  };
+
+  const handleToggleTireActive = (tireId: string) => {
+    const updated = tires.map(t => {
+      if (t.id === tireId) {
+        const nextState = t.isActive === false;
+        
+        addAndSaveNotification(
+          'system', 
+          nextState ? 'Producto Activado' : 'Producto Desactivado', 
+          `Se ${nextState ? 'activó' : 'desactivó'} el producto ${t.brand} ${t.model}.`
+        );
+
+        addAuditLog(
+          userRole,
+          nextState ? 'Activación de Producto' : 'Desactivación de Producto',
+          'Tire',
+          tireId,
+          'Frontera',
+          `Se cambió estatus del producto ${t.brand} ${t.model} a ${nextState ? 'Activo' : 'Inactivo'}.`
+        );
+
+        return {
+          ...t,
+          isActive: nextState
+        };
+      }
+      return t;
+    });
+    setTires(updated);
+    saveTires(updated);
+  };
+
+  const handleSaveProduct = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!productForm.brand || !productForm.model) {
+      alert('Por favor complete marca y modelo.');
+      return;
+    }
+
+    const sizeStr = `${productForm.width}/${productForm.profile} R${productForm.rim}`;
+    const calculatedTotalStock = Number(productForm.centroStock) + Number(productForm.norteStock) + Number(productForm.fronteraStock);
+    
+    let updatedList: Tire[] = [];
+    if (editingProduct) {
+      updatedList = tires.map(t => {
+        if (t.id === editingProduct.id) {
+          return {
+            ...t,
+            brand: productForm.brand,
+            model: productForm.model,
+            width: Number(productForm.width),
+            profile: Number(productForm.profile),
+            rim: Number(productForm.rim),
+            size: sizeStr,
+            price: Number(productForm.price),
+            discount: productForm.discount ? Number(productForm.discount) : undefined,
+            image: productForm.image || 'https://images.unsplash.com/photo-1578844251758-2f71da64c96f?auto=format&fit=crop&q=80&w=300',
+            isActive: productForm.isActive,
+            stock: calculatedTotalStock,
+            branchStocks: {
+              Centro: Number(productForm.centroStock),
+              Norte: Number(productForm.norteStock),
+              Frontera: Number(productForm.fronteraStock)
+            },
+            warehouseStocks: {
+              'Bodega 1': Number(productForm.bodega1Stock),
+              'Bodega 2': Number(productForm.bodega2Stock)
+            }
+          };
+        }
+        return t;
+      });
+
+      addAndSaveNotification(
+        'system',
+        'Producto Guardado',
+        `Se actualizaron los datos de ${productForm.brand} ${productForm.model}.`
+      );
+
+      addAuditLog(
+        userRole,
+        'Edición de Producto',
+        'Tire',
+        editingProduct.id,
+        'Frontera',
+        `Se editaron datos del neumático ${productForm.brand} ${productForm.model}.`
+      );
+    } else {
+      const newId = 'T-' + Math.floor(1000 + Math.random() * 9000);
+      const newTire: Tire = {
+        id: newId,
+        brand: productForm.brand,
+        model: productForm.model,
+        width: Number(productForm.width),
+        profile: Number(productForm.profile),
+        rim: Number(productForm.rim),
+        size: sizeStr,
+        price: Number(productForm.price),
+        discount: productForm.discount ? Number(productForm.discount) : undefined,
+        image: productForm.image || 'https://images.unsplash.com/photo-1578844251758-2f71da64c96f?auto=format&fit=crop&q=80&w=300',
+        isActive: productForm.isActive,
+        stock: calculatedTotalStock,
+        branchStocks: {
+          Centro: Number(productForm.centroStock),
+          Norte: Number(productForm.norteStock),
+          Frontera: Number(productForm.fronteraStock)
+        },
+        warehouseStocks: {
+          'Bodega 1': Number(productForm.bodega1Stock),
+          'Bodega 2': Number(productForm.bodega2Stock)
+        }
+      };
+      updatedList = [newTire, ...tires];
+
+      addAndSaveNotification(
+        'incoming',
+        'Producto Creado',
+        `Nuevo neumático ${productForm.brand} ${productForm.model} agregado.`
+      );
+
+      addAuditLog(
+        userRole,
+        'Creación de Producto',
+        'Tire',
+        newId,
+        'Frontera',
+        `Se creó el nuevo neumático ${productForm.brand} ${productForm.model} en el catálogo.`
+      );
+    }
+
+    setTires(updatedList);
+    saveTires(updatedList);
+    setIsProductModalOpen(false);
+    setEditingProduct(null);
+  };
 
   // Quick Inline stock add handler (For direct stock intake at individual level)
   const handleDirectAdd = (tireId: string, warehouse: WarehouseName) => {
@@ -491,7 +712,16 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
         {isAdmin && (
           <div className="flex items-center gap-2 p-1">
             <button 
+              onClick={() => handleOpenProductModal()}
+              type="button"
+              className="px-5 py-3 bg-brand-red text-white hover:bg-brand-red/90 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-brand-red/10 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
+              title="Crear un nuevo neumático en catálogo"
+            >
+              <Plus size={14} strokeWidth={3} /> Nuevo Neumático
+            </button>
+            <button 
               onClick={() => setIsTransferModalOpen(true)}
+              type="button"
               className="px-5 py-3 bg-brand-matte border border-brand-border/80 hover:border-brand-gold hover:text-brand-gold rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 transition-all flex items-center gap-2"
               title="Realizar traspasos entre bodegas y sucursales"
             >
@@ -499,6 +729,7 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
             </button>
             <button 
               onClick={() => setIsMovementModalOpen(true)}
+              type="button"
               className="px-5 py-3 bg-brand-gold text-black rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-brand-gold/10 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
               title="Dar de alta de inventario individual"
             >
@@ -784,6 +1015,54 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
                           )}
                         </div>
                       )}
+
+                      {/* Price & Active/Inactive badge, and Admin CRUD Actions */}
+                      <div className="mt-4 pt-4 border-t border-brand-border/40 flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest block font-mono">Precio Unitario</span>
+                            <span className="font-mono font-black text-white text-base">${tire.price.toLocaleString()} MXN</span>
+                          </div>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-widest border ${
+                            tire.isActive !== false 
+                              ? 'bg-green-500/15 text-green-400 border-green-500/30' 
+                              : 'bg-brand-red/15 text-brand-red border-brand-red/30 animate-pulse'
+                          }`}>
+                            {tire.isActive !== false ? 'Activo' : 'Desactivado'}
+                          </span>
+                        </div>
+
+                        {isAdmin && (
+                          <div className="grid grid-cols-3 gap-1.5 pt-1.5 border-t border-brand-border/20">
+                            <button 
+                              type="button"
+                              onClick={() => handleOpenProductModal(tire)}
+                              className="py-2 bg-brand-matte border border-brand-border hover:border-brand-gold/45 text-slate-400 hover:text-brand-gold rounded-xl transition-colors flex items-center justify-center gap-1 text-[8px] uppercase font-black tracking-wider"
+                            >
+                              <Edit2 size={10} className="text-brand-gold" /> Editar
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => handleToggleTireActive(tire.id)}
+                              className="py-2 bg-brand-matte border border-brand-border hover:border-brand-red/45 text-slate-400 hover:text-brand-red rounded-xl transition-colors flex items-center justify-center gap-1 text-[8px] uppercase font-black tracking-wider"
+                              title={tire.isActive !== false ? "Desactivar de catálogo" : "Activar en catálogo"}
+                            >
+                              {tire.isActive !== false ? (
+                                <><EyeOff size={10} className="text-brand-red" /> No Ver</>
+                              ) : (
+                                <><Eye size={10} className="text-green-400" /> Ver</>
+                              )}
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => handleDeleteTire(tire.id)}
+                              className="py-2 bg-brand-matte border border-brand-border hover:border-brand-red text-slate-400 hover:text-brand-red hover:bg-brand-red/10 rounded-xl transition-colors flex items-center justify-center gap-1 text-[8px] uppercase font-black tracking-wider"
+                            >
+                              <Trash2 size={10} className="text-brand-red" /> Borrar
+                            </button>
+                          </div>
+                        )}
+                      </div>
 
                     </div>
                   </motion.div>
@@ -1165,6 +1444,234 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
                     className="flex-[2] px-6 py-4 bg-brand-gold hover:bg-brand-gold/90 text-black rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-brand-gold/20 active:scale-95 transition-all text-center"
                   >
                     Confirmar Alta
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* PRODUCT CREATION / EDITING WIZARD MODAL */}
+      <AnimatePresence>
+        {isProductModalOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md font-sans">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-brand-matte border border-brand-border w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(153,0,0,0.15)] flex flex-col max-h-[90vh]"
+            >
+              <div className="p-8 border-b border-brand-border flex items-center justify-between bg-black/40">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-brand-red/10 rounded-2xl text-brand-red border border-brand-red/20">
+                    <Package size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black italic uppercase text-white">
+                      {editingProduct ? 'Editar' : 'Nuevo'} <span className="text-brand-red">Producto en Catálogo</span>
+                    </h3>
+                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest font-mono">Control operativo del catálogo general de neumáticos</p>
+                  </div>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setIsProductModalOpen(false)}
+                  className="w-10 h-10 bg-brand-dark hover:bg-white/5 rounded-full flex items-center justify-center transition-colors border border-brand-border text-slate-400"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveProduct} className="p-8 space-y-6 overflow-y-auto flex-1">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Marca</label>
+                    <input 
+                      type="text"
+                      required
+                      placeholder="Ej. Michelin, Bridgestone"
+                      value={productForm.brand}
+                      onChange={(e) => setProductForm({ ...productForm, brand: e.target.value })}
+                      className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand-red font-bold"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Modelo</label>
+                    <input 
+                      type="text"
+                      required
+                      placeholder="Ej. Pilot Sport 4, Alenza"
+                      value={productForm.model}
+                      onChange={(e) => setProductForm({ ...productForm, model: e.target.value })}
+                      className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand-red font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Ancho (ej. 225)</label>
+                    <input 
+                      type="number"
+                      required
+                      value={productForm.width}
+                      onChange={(e) => setProductForm({ ...productForm, width: parseInt(e.target.value) || 0 })}
+                      className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand-red font-bold font-mono text-center"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Perfil (ej. 45)</label>
+                    <input 
+                      type="number"
+                      required
+                      value={productForm.profile}
+                      onChange={(e) => setProductForm({ ...productForm, profile: parseInt(e.target.value) || 0 })}
+                      className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand-red font-bold font-mono text-center"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Rin / Diámetro (ej. 17)</label>
+                    <input 
+                      type="number"
+                      required
+                      value={productForm.rim}
+                      onChange={(e) => setProductForm({ ...productForm, rim: parseInt(e.target.value) || 0 })}
+                      className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand-red font-bold font-mono text-center"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Precio Unitario ($ MXN)</label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
+                      <input 
+                        type="number"
+                        required
+                        value={productForm.price || ''}
+                        onChange={(e) => setProductForm({ ...productForm, price: parseInt(e.target.value) || 0 })}
+                        className="w-full bg-brand-dark border border-brand-border rounded-xl pl-8 pr-4 py-3 text-xs text-white outline-none focus:border-brand-red font-bold font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Descuento Real % (0 a 0.99)</label>
+                    <input 
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="0.99"
+                      placeholder="Ej. 0.10 para 10%"
+                      value={productForm.discount || ''}
+                      onChange={(e) => setProductForm({ ...productForm, discount: parseFloat(e.target.value) || 0 })}
+                      className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand-red font-bold font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Imagen URL del Neumático</label>
+                  <input 
+                    type="text"
+                    placeholder="URL o deje en blanco para usar una genérica"
+                    value={productForm.image}
+                    onChange={(e) => setProductForm({ ...productForm, image: e.target.value })}
+                    className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand-red font-bold"
+                  />
+                </div>
+
+                <div className="space-y-4 pt-4 border-t border-brand-border/40">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-200">Distribución Inicial de Stock Físico</h4>
+                  
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-black/40 border border-brand-border p-3.5 rounded-2xl">
+                      <label className="text-[8px] font-black uppercase tracking-widest text-slate-500 block mb-1 font-mono">Centro</label>
+                      <input 
+                        type="number"
+                        value={productForm.centroStock}
+                        onChange={(e) => setProductForm({ ...productForm, centroStock: parseInt(e.target.value) || 0 })}
+                        className="w-full bg-brand-dark border border-brand-border rounded-lg text-center py-1.5 text-xs text-white font-mono font-bold"
+                      />
+                    </div>
+                    <div className="bg-black/40 border border-brand-border p-3.5 rounded-2xl">
+                      <label className="text-[8px] font-black uppercase tracking-widest text-slate-500 block mb-1 font-mono">Norte</label>
+                      <input 
+                        type="number"
+                        value={productForm.norteStock}
+                        onChange={(e) => setProductForm({ ...productForm, norteStock: parseInt(e.target.value) || 0 })}
+                        className="w-full bg-brand-dark border border-brand-border rounded-lg text-center py-1.5 text-xs text-white font-mono font-bold"
+                      />
+                    </div>
+                    <div className="bg-black/40 border border-brand-border p-3.5 rounded-2xl">
+                      <label className="text-[8px] font-black uppercase tracking-widest text-slate-500 block mb-1 font-mono">Frontera</label>
+                      <input 
+                        type="number"
+                        value={productForm.fronteraStock}
+                        onChange={(e) => setProductForm({ ...productForm, fronteraStock: parseInt(e.target.value) || 0 })}
+                        className="w-full bg-brand-dark border border-brand-border rounded-lg text-center py-1.5 text-xs text-white font-mono font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    <div className="bg-black/40 border border-brand-border p-3.5 rounded-2xl">
+                      <label className="text-[8px] font-black uppercase tracking-widest text-slate-500 block mb-1 font-mono">Bodega 1 (Central)</label>
+                      <input 
+                        type="number"
+                        value={productForm.bodega1Stock}
+                        onChange={(e) => setProductForm({ ...productForm, bodega1Stock: parseInt(e.target.value) || 0 })}
+                        className="w-full bg-brand-dark border border-brand-border rounded-lg text-center py-1.5 text-xs text-white font-mono font-bold"
+                      />
+                    </div>
+                    <div className="bg-black/40 border border-brand-border p-3.5 rounded-2xl">
+                      <label className="text-[8px] font-black uppercase tracking-widest text-slate-400 block mb-1 font-mono">Bodega 2 (Frontera)</label>
+                      <input 
+                        type="number"
+                        value={productForm.bodega2Stock}
+                        onChange={(e) => setProductForm({ ...productForm, bodega2Stock: parseInt(e.target.value) || 0 })}
+                        className="w-full bg-brand-dark border border-brand-border rounded-lg text-center py-1.5 text-xs text-white font-mono font-bold"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-[#110000]/10 border border-[#990000]/20 rounded-2xl">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-brand-red font-mono">Estatus de Visibilidad</span>
+                    <span className="text-slate-500 text-[8px] font-mono uppercase">Controla si el producto se muestra en la tienda online</span>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setProductForm({ ...productForm, isActive: !productForm.isActive })}
+                    className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                      productForm.isActive 
+                        ? 'bg-green-500/10 text-green-400 border border-green-500/25' 
+                        : 'bg-brand-red/10 text-brand-red border border-brand-red/25 animate-pulse'
+                    }`}
+                  >
+                    {productForm.isActive ? '👁️ Visible (Activo)' : '👁️‍Cerrado (Desactivado)'}
+                  </button>
+                </div>
+
+                <div className="flex gap-4 pt-4 border-t border-brand-border/40 font-mono">
+                  <button 
+                    type="button"
+                    onClick={() => setIsProductModalOpen(false)}
+                    className="flex-1 px-6 py-4 bg-transparent border border-brand-border hover:bg-white/5 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-slate-400 transition-all font-mono"
+                  >
+                    Salir
+                  </button>
+                  <button 
+                    type="submit"
+                    className="flex-[2] px-6 py-4 bg-brand-red text-white hover:bg-brand-red/90 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-brand-red/20 active:scale-95 transition-all text-center font-mono"
+                  >
+                    Guardar Neumático
                   </button>
                 </div>
               </form>

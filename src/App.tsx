@@ -357,7 +357,8 @@ export default function App() {
     return tiresList.filter(tire => {
       const rimMatch = selectedRim === 'all' || tire.rim === selectedRim;
       const brandMatch = selectedBrand === 'all' || tire.brand === selectedBrand;
-      return rimMatch && brandMatch;
+      const activeMatch = tire.isActive !== false;
+      return rimMatch && brandMatch && activeMatch;
     });
   }, [tiresList, selectedRim, selectedBrand]);
 

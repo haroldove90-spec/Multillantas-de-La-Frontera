@@ -12,7 +12,9 @@ import {
   Car, 
   Hash,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Cliente, Branch } from '../types';
@@ -43,7 +45,8 @@ export const ClientesPanel: React.FC<ClientesPanelProps> = () => {
     telefono: '',
     direccion: '',
     placa_vehiculo: '',
-    sucursal_registro_id: 'Centro' as Branch
+    sucursal_registro_id: 'Centro' as Branch,
+    isActive: true
   });
 
   const filteredClientes = useMemo(() => {
@@ -54,7 +57,7 @@ export const ClientesPanel: React.FC<ClientesPanelProps> = () => {
   }, [clientes, searchTerm]);
 
   const handleExportCSV = () => {
-    const headers = ['ID', 'Nombre', 'RFC', 'Teléfono', 'Dirección', 'Placa', 'Sucursal', 'Registro'];
+    const headers = ['ID', 'Nombre', 'RFC', 'Teléfono', 'Dirección', 'Placa', 'Sucursal', 'Estatus', 'Registro'];
     const rows = clientes.map(c => [
       c.id,
       c.nombre,
@@ -63,6 +66,7 @@ export const ClientesPanel: React.FC<ClientesPanelProps> = () => {
       c.direccion || '',
       c.placa_vehiculo,
       c.sucursal_registro_id,
+      c.isActive !== false ? 'Activo' : 'Inactivo',
       new Date(c.created_at).toLocaleDateString()
     ]);
 
@@ -77,6 +81,15 @@ export const ClientesPanel: React.FC<ClientesPanelProps> = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleToggleActive = (id: string) => {
+    const updatedList = clientes.map(c => c.id === id ? {
+      ...c,
+      isActive: c.isActive === false
+    } : c);
+    setClientes(updatedList);
+    saveClientes(updatedList);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -111,7 +124,8 @@ export const ClientesPanel: React.FC<ClientesPanelProps> = () => {
         telefono: cliente.telefono || '',
         direccion: cliente.direccion || '',
         placa_vehiculo: cliente.placa_vehiculo,
-        sucursal_registro_id: cliente.sucursal_registro_id as Branch
+        sucursal_registro_id: cliente.sucursal_registro_id as Branch,
+        isActive: cliente.isActive !== false
       });
     } else {
       setEditingCliente(null);
@@ -121,7 +135,8 @@ export const ClientesPanel: React.FC<ClientesPanelProps> = () => {
         telefono: '',
         direccion: '',
         placa_vehiculo: '',
-        sucursal_registro_id: 'Centro'
+        sucursal_registro_id: 'Centro',
+        isActive: true
       });
     }
     setIsModalOpen(true);
@@ -208,67 +223,82 @@ export const ClientesPanel: React.FC<ClientesPanelProps> = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-border/30">
-              {filteredClientes.map(cliente => (
-                <tr key={cliente.id} className="group hover:bg-white/[0.02] transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-matte to-brand-dark border border-brand-border flex items-center justify-center text-brand-red font-black text-xs shadow-inner">
-                        {cliente.nombre.charAt(0)}
+              {filteredClientes.map(cliente => {
+                const isActive = cliente.isActive !== false;
+                return (
+                  <tr key={cliente.id} className={`group hover:bg-white/[0.02] transition-colors ${!isActive ? 'opacity-65 saturate-50' : ''}`}>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-matte to-brand-dark border border-brand-border flex items-center justify-center text-brand-red font-black text-xs shadow-inner">
+                          {cliente.nombre.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold text-white group-hover:text-brand-red transition-colors">{cliente.nombre}</p>
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${isActive ? 'bg-green-550/10 text-green-400 border border-green-550/20' : 'bg-brand-red/10 text-brand-red border border-brand-red/20 animate-pulse'}`}>
+                              {isActive ? 'Activo' : 'Inactivo'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-mono">{cliente.rfc || 'Sin RFC'}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-white group-hover:text-brand-red transition-colors">{cliente.nombre}</p>
-                        <p className="text-[10px] text-slate-500 font-mono">{cliente.rfc || 'Sin RFC'}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="inline-block px-3 py-1 bg-brand-dark border border-brand-border rounded font-mono text-sm text-brand-red font-bold shadow-inner">
-                      {cliente.placa_vehiculo}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-400">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Phone size={12} className="text-slate-600" />
-                        <span>{cliente.telefono || 'N/A'}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin size={12} className="text-slate-600" />
-                        <span className="truncate max-w-[200px]">{cliente.direccion || 'Sin dirección'}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-1.5 h-1.5 rounded-full ${
-                        cliente.sucursal_registro_id === 'Centro' ? 'bg-brand-red' : 
-                        cliente.sucursal_registro_id === 'Norte' ? 'bg-brand-blue' : 'bg-brand-gold'
-                      }`} />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">
-                        {cliente.sucursal_registro_id}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-block px-3 py-1 bg-brand-dark border border-brand-border rounded font-mono text-sm text-brand-red font-bold shadow-inner">
+                        {cliente.placa_vehiculo}
                       </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => openModal(cliente)}
-                        className="p-2 text-slate-500 hover:text-white hover:bg-white/5 rounded-lg transition-all"
-                        title="Editar"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(cliente.id)}
-                        className="p-2 text-slate-500 hover:text-brand-red hover:bg-brand-red/5 rounded-lg transition-all"
-                        title="Eliminar"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-400">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Phone size={12} className="text-slate-600" />
+                          <span>{cliente.telefono || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MapPin size={12} className="text-slate-600" />
+                          <span className="truncate max-w-[200px]">{cliente.direccion || 'Sin dirección'}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-1.5 h-1.5 rounded-full ${
+                          cliente.sucursal_registro_id === 'Centro' ? 'bg-brand-red' : 
+                          cliente.sucursal_registro_id === 'Norte' ? 'bg-brand-blue' : 'bg-brand-gold'
+                        }`} />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">
+                          {cliente.sucursal_registro_id}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => handleToggleActive(cliente.id)}
+                          className="p-2 text-slate-500 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+                          title={isActive ? "Desactivar Cliente" : "Activar Cliente"}
+                        >
+                          {isActive ? <EyeOff size={16} className="text-brand-red" /> : <Eye size={16} className="text-green-400" />}
+                        </button>
+                        <button 
+                          onClick={() => openModal(cliente)}
+                          className="p-2 text-slate-500 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+                          title="Editar"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(cliente.id)}
+                          className="p-2 text-slate-500 hover:text-brand-red hover:bg-brand-red/5 rounded-lg transition-all"
+                          title="Eliminar"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
               {filteredClientes.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-20 text-center">
@@ -401,6 +431,24 @@ export const ClientesPanel: React.FC<ClientesPanelProps> = () => {
                       rows={3}
                       className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm focus:border-brand-red transition-all text-white outline-none placeholder:text-slate-700 resize-none"
                     />
+                  </div>
+
+                  <div className="col-span-2 flex items-center justify-between p-4 bg-brand-dark border border-brand-border rounded-xl">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-300">Estatus de Cliente</span>
+                      <span className="text-slate-500 text-[8px] font-mono uppercase">Controla el acceso y visibilidad de este cliente</span>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                      className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                        formData.isActive 
+                          ? 'bg-green-550/10 text-green-400 border border-green-555/20' 
+                          : 'bg-brand-red/10 text-brand-red border border-brand-red/20 animate-pulse'
+                      }`}
+                    >
+                      {formData.isActive ? '👁️ Activo' : '👁️‍🗨️ Inactivo'}
+                    </button>
                   </div>
                 </div>
 

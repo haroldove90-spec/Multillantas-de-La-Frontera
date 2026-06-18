@@ -137,6 +137,15 @@ export const savePhysicalCount = (record: Omit<PhysicalCountRecord, 'id' | 'date
   return newRecord;
 };
 
+export const deletePhysicalCount = (id: string) => {
+  const counts = getPhysicalCounts();
+  const updated = counts.filter(x => x.id !== id);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(COUNTS_STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event('multillantas_state_update'));
+  }
+};
+
 export const updateTireStock = (
   tireId: string,
   branch: Branch,
@@ -232,6 +241,7 @@ export interface Invoice {
   status: 'Timbrada' | 'Cancelada' | 'Pendiente';
   type: 'Ingreso' | 'Egreso';
   branch: Branch;
+  isActive?: boolean;
 }
 
 const MOCK_INVOICES_INITIAL: Invoice[] = [
