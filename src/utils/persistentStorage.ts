@@ -1,5 +1,5 @@
-import { Tire, AuditLog, Branch, AccountReceivable, AccountPayable, Cliente, SystemUser, WarehouseName, MercadoPagoConfig } from '../types';
-import { TIRES, MOCK_AUDIT, MOCK_CXC, MOCK_CXP, MOCK_CLIENTES } from '../constants';
+import { Tire, AuditLog, Branch, AccountReceivable, AccountPayable, Cliente, SystemUser, WarehouseName, MercadoPagoConfig, ServiceNote } from '../types';
+import { TIRES, MOCK_AUDIT, MOCK_CXC, MOCK_CXP, MOCK_CLIENTES, MOCK_NOTES } from '../constants';
 
 const TIRES_STORAGE_KEY = 'multillantas_tires_v2';
 const AUDIT_STORAGE_KEY = 'multillantas_audit_v1';
@@ -394,6 +394,51 @@ export const getMercadoPagoConfig = (): MercadoPagoConfig => {
 export const saveMercadoPagoConfig = (config: MercadoPagoConfig) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem(MERCADO_PAGO_STORAGE_KEY, JSON.stringify(config));
+    window.dispatchEvent(new Event('multillantas_state_update'));
+  }
+};
+
+const NOTES_STORAGE_KEY = 'multillantas_notes_v1';
+const CATALOG_TIRES_STORAGE_KEY = 'multillantas_catalog_tires_v1';
+
+export const getServiceNotes = (): ServiceNote[] => {
+  if (typeof window === 'undefined') return MOCK_NOTES;
+  const stored = localStorage.getItem(NOTES_STORAGE_KEY);
+  if (!stored) {
+    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(MOCK_NOTES));
+    return MOCK_NOTES;
+  }
+  try {
+    return JSON.parse(stored);
+  } catch (e) {
+    return MOCK_NOTES;
+  }
+};
+
+export const saveServiceNotes = (notes: ServiceNote[]) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes));
+    window.dispatchEvent(new Event('multillantas_state_update'));
+  }
+};
+
+export const getCatalogTires = (): Tire[] => {
+  if (typeof window === 'undefined') return TIRES;
+  const stored = localStorage.getItem(CATALOG_TIRES_STORAGE_KEY);
+  if (!stored) {
+    localStorage.setItem(CATALOG_TIRES_STORAGE_KEY, JSON.stringify(TIRES));
+    return TIRES;
+  }
+  try {
+    return JSON.parse(stored);
+  } catch (e) {
+    return TIRES;
+  }
+};
+
+export const saveCatalogTires = (tires: Tire[]) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(CATALOG_TIRES_STORAGE_KEY, JSON.stringify(tires));
     window.dispatchEvent(new Event('multillantas_state_update'));
   }
 };

@@ -116,7 +116,7 @@ export interface ExchangeRate {
   lastUpdate: string;
 }
 
-export type NoteType = 'Venta' | 'Apartado' | 'Pedido';
+export type NoteType = 'Venta' | 'Apartado' | 'Pedido' | 'Credito';
 
 export type NoteStatus = 'Pendiente' | 'Pagado' | 'En Taller' | 'Listo para Entrega' | 'Finalizado';
 
