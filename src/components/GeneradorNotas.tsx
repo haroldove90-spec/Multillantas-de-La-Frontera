@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { 
   FileText, 
   Search, 
@@ -47,6 +49,62 @@ export const GeneradorNotas: React.FC = () => {
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<ServiceNote | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadPDF = async () => {
+    if (!printRef.current || !selectedNote) return;
+    
+    try {
+      setIsGeneratingPdf(true);
+      const element = printRef.current;
+      
+      const canvas = await html2canvas(element, {
+        scale: 2.5,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: element.offsetWidth,
+        height: element.offsetHeight,
+        onclone: (clonedDoc) => {
+          const clonedElement = clonedDoc.getElementById('print-area') as HTMLElement;
+          if (clonedElement) {
+            clonedElement.style.background = 'white';
+            clonedElement.style.color = 'black';
+            clonedElement.querySelectorAll('*').forEach((node) => {
+              const el = node as HTMLElement;
+              if (el.classList.contains('text-brand-red')) el.style.color = '#E30613';
+              if (el.classList.contains('text-brand-blue')) el.style.color = '#0055b8';
+              if (el.classList.contains('text-brand-gold')) el.style.color = '#D4AF37';
+              if (el.classList.contains('text-slate-900')) el.style.color = '#000000';
+              if (el.classList.contains('text-slate-500')) el.style.color = '#64748b';
+              if (el.classList.contains('bg-slate-50')) el.style.backgroundColor = '#f8fafc';
+              if (el.classList.contains('bg-blue-50')) el.style.backgroundColor = '#eff6ff';
+            });
+          }
+        }
+      });
+      
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'letter'
+      });
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Nota_Multillantas_${selectedNote.folio}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Error técnico al generar PDF. Use el botón de "Imprimir" y seleccione "Guardar como PDF".');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   // Clientes persistent state
   const [clientes, setClientes] = useState<Cliente[]>(() => getClientes());
@@ -1118,170 +1176,29 @@ export const GeneradorNotas: React.FC = () => {
                 <div className="flex justify-end gap-3 no-print">
                     <button 
                         onClick={() => {
-                            const printWindow = window.open('', '_blank');
-                            if (!printWindow) {
-                              alert('Por favor habilite las ventanas emergentes (pop-ups) para imprimir.');
-                              return;
-                            }
-
-                            const itemsHtml = selectedNote.items.map(item => `
-                              <tr class="border-b border-gray-200">
-                                <td class="py-3 px-4">
-                                  <p class="font-bold text-gray-800">${item.description}</p>
-                                  <p class="text-xs text-gray-400 italic">Garantía Aplicable: 1 año</p>
-                                </td>
-                                <td class="py-3 px-4 text-center font-bold text-gray-700">${item.quantity}</td>
-                                <td class="py-3 px-4 text-right text-gray-700">$${item.unitPrice.toLocaleString()}</td>
-                                <td class="py-3 px-4 text-right font-bold text-gray-950">$${item.total.toLocaleString()}</td>
-                              </tr>
-                            `).join('');
-
-                            const anticipoHtml = selectedNote.anticipo ? `
-                              <div class="flex justify-between items-center text-sm font-bold text-blue-700 p-2 bg-blue-50 rounded">
-                                <span>ANTICIPO RECIBIDO:</span>
-                                <span>- $${selectedNote.anticipo.toLocaleString()}</span>
-                              </div>
-                            ` : '';
-
-                            const htmlContent = `
-                              <!DOCTYPE html>
-                              <html>
-                              <head>
-                                <title>Nota de Servicio - ${selectedNote.folio}</title>
-                                <meta charset="utf-8">
-                                <script src="https://cdn.tailwindcss.com"></script>
-                                <style>
-                                  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
-                                  body {
-                                    font-family: 'Inter', sans-serif;
-                                    -webkit-print-color-adjust: exact;
-                                  }
-                                  @media print {
-                                    .no-print { display: none !important; }
-                                    body { background: white; color: black; }
-                                  }
-                                </style>
-                              </head>
-                              <body class="bg-gray-100 p-6 md:p-12">
-                                <div class="max-w-4xl mx-auto bg-white p-8 md:p-12 shadow-md rounded-lg border border-gray-100" id="print-area">
-                                  <div class="flex justify-between items-center mb-8 no-print bg-amber-50 border border-amber-200 p-4 rounded-xl">
-                                    <span class="text-xs font-semibold text-amber-800">Esta es una vista previa de impresión limpia. El cuadro de diálogo se abrirá automáticamente.</span>
-                                    <div class="flex gap-2">
-                                      <button onclick="window.print()" class="px-4 py-2 bg-blue-600 text-white text-xs font-bold uppercase rounded-lg hover:bg-blue-700">Imprimir/Guardar PDF</button>
-                                      <button onclick="window.close()" class="px-4 py-2 bg-gray-200 text-gray-800 text-xs font-bold uppercase rounded-lg hover:bg-gray-300">Cerrar Pestaña</button>
-                                    </div>
-                                  </div>
-
-                                  <div class="flex justify-between items-start border-b-4 border-gray-900 pb-6 mb-6">
-                                    <div class="space-y-3">
-                                      <img src="https://appdesign.appdesignproyectos.com/multillantas.png" alt="Logo" class="h-16 w-auto brightness-0" />
-                                      <div class="text-xs text-gray-600 leading-relaxed">
-                                        <p class="font-black text-gray-900">MULTILLANTAS DE LA FRONTERA</p>
-                                        <p>Blvd. Luis Echeverría No. 1200</p>
-                                        <p>Tel: (899) 923-4567 | (899) 922-1133</p>
-                                        <p>Reynosa, Tamaulipas, México</p>
-                                      </div>
-                                    </div>
-                                    <div class="text-right space-y-1.5">
-                                      <div class="bg-black text-white px-5 py-2 rounded-lg font-black text-lg italic tracking-wider">
-                                        NOTA DE ${selectedNote.type.toUpperCase()}
-                                      </div>
-                                      <p class="text-xs text-gray-500 font-bold">FOLIO: <span class="text-base text-gray-950 font-black">${selectedNote.folio}</span></p>
-                                      <p class="text-xs text-gray-500 font-bold">FECHA: <span class="text-gray-900">${new Date(selectedNote.createdAt).toLocaleDateString()}</span></p>
-                                      <p class="text-xs text-gray-500 font-bold">SUCURSAL: <span class="text-gray-900">${selectedNote.branch}</span></p>
-                                    </div>
-                                  </div>
-
-                                  <div class="grid grid-cols-2 gap-6 mb-6 bg-gray-50 p-5 rounded-xl border border-gray-200">
-                                    <div>
-                                      <h5 class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Datos del Cliente</h5>
-                                      <p class="font-black text-gray-900 text-base">${selectedNote.clienteNombre}</p>
-                                      <p class="text-xs text-gray-600 mt-0.5">${selectedNote.clienteTelefono || 'Sin teléfono registrado'}</p>
-                                    </div>
-                                    <div class="text-right">
-                                      <h5 class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Vehículo / Placa</h5>
-                                      <p class="font-black text-gray-900 text-base uppercase font-mono">${selectedNote.clientePlaca}</p>
-                                      <p class="text-[10px] text-gray-500 mt-0.5">Estatus de Nota: <span class="font-bold text-gray-800">${selectedNote.status}</span></p>
-                                    </div>
-                                  </div>
-
-                                  <table class="w-full text-sm border-collapse mb-6">
-                                    <thead>
-                                      <tr class="bg-gray-900 text-white text-[9px] tracking-widest uppercase">
-                                        <th class="py-2 px-4 text-left font-black rounded-tl-lg">Descripción</th>
-                                        <th class="py-2 px-4 text-center font-black">Cant.</th>
-                                        <th class="py-2 px-4 text-right font-black">Precio Unit.</th>
-                                        <th class="py-2 px-4 text-right font-black rounded-tr-lg">Importe</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-100 border-x border-b border-gray-100">
-                                      ${itemsHtml}
-                                    </tbody>
-                                  </table>
-
-                                  <div class="flex justify-end mb-8">
-                                    <div class="w-72 space-y-2">
-                                      <div class="flex justify-between items-center text-xs text-gray-500">
-                                        <span>SUBTOTAL:</span>
-                                        <span class="font-bold text-gray-800">$${selectedNote.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                                      </div>
-                                      <div class="flex justify-between items-center text-xs text-gray-500">
-                                        <span>IVA (16%):</span>
-                                        <span class="font-bold text-gray-800">$${selectedNote.iva.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                                      </div>
-                                      ${anticipoHtml}
-                                      <div class="flex justify-between items-center pt-2 border-t-2 border-gray-900">
-                                        <span class="font-black text-[10px] text-gray-900 uppercase tracking-wider">TOTAL A PAGAR:</span>
-                                        <span class="font-black text-xl text-gray-950">$${(selectedNote.saldoRestante ?? selectedNote.total).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} MXN</span>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div class="grid grid-cols-2 gap-8 pt-6 border-t border-gray-200 text-gray-600">
-                                    <div class="space-y-1.5">
-                                      <h6 class="text-[9px] font-black text-gray-950 uppercase tracking-wider border-b pb-0.5">Garantías y Políticas</h6>
-                                      <div class="text-[8px] space-y-0.5">
-                                        <p class="font-bold">• Llantas Nuevas: 1 Año contra defectos de fábrica.</p>
-                                        <p class="font-bold">• Llantas Seminuevas/Usadas: 15 Días de garantía por bola o chipote.</p>
-                                        <p>• No hay devoluciones en efectivo, únicamente cambio físico o saldo a favor.</p>
-                                        <p>• No nos hacemos responsables por objetos olvidados dentro de su vehículo.</p>
-                                      </div>
-                                    </div>
-                                    <div class="flex flex-col items-center justify-end">
-                                      <div class="w-40 h-0.5 bg-gray-400 mb-1" />
-                                      <p class="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Firma de Conformidad del Cliente</p>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <script>
-                                  window.onload = function() {
-                                    setTimeout(function() {
-                                      window.print();
-                                    }, 500);
-                                  };
-                                </script>
-                              </body>
-                              </html>
-                            `;
-
-                            printWindow.document.write(htmlContent);
-                            printWindow.document.close();
+                            window.print();
                         }}
                         className="px-6 py-3 bg-brand-red text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl flex items-center gap-2 hover:bg-brand-red/90"
                     >
-                        <Printer size={16} /> Exportar e Imprimir PDF
+                        <Printer size={16} /> Imprimir / Guardar PDF
+                    </button>
+                    <button 
+                        onClick={handleDownloadPDF}
+                        disabled={isGeneratingPdf}
+                        className="px-6 py-3 bg-brand-gold text-black rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl flex items-center gap-2 hover:bg-brand-gold/90 disabled:opacity-55 active:scale-95 transition-all"
+                    >
+                        <Download size={16} /> {isGeneratingPdf ? 'Generando PDF...' : 'Descargar PDF (Archivo)'}
                     </button>
                     <button 
                         onClick={() => setIsPrintModalOpen(false)}
-                        className="px-6 py-3 bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/20"
+                        className="px-6 py-3 bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/20 active:scale-95 transition-all"
                     >
                         Cerrar
                     </button>
                 </div>
 
                 {/* Print Template */}
-                <div className="bg-white text-black p-12 shadow-2xl rounded-sm print:p-8 print:shadow-none print:m-0 print:rounded-none" id="print-area">
+                <div ref={printRef} className="bg-white text-black p-12 shadow-2xl rounded-sm print:p-8 print:shadow-none print:m-0 print:rounded-none" id="print-area">
                     {/* Header Layout based on Image */}
                     <div className="flex justify-between items-start border-b-4 border-black pb-8 mb-8">
                         <div className="space-y-4">

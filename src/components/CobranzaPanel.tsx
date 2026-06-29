@@ -100,6 +100,40 @@ export const CobranzaPanel: React.FC<CobranzaPanelProps> = ({ userRole, userBran
   const [clientSearch, setClientSearch] = useState('');
   const [showClientResults, setShowClientResults] = useState(false);
 
+  // Search & Filter State for CXC
+  const [cxcSearch, setCxcSearch] = useState('');
+  const [cxcStatusFilter, setCxcStatusFilter] = useState<'all' | 'pendiente' | 'parcial' | 'liquidado'>('all');
+
+  // Search & Filter State for CXP
+  const [cxpSearch, setCxpSearch] = useState('');
+  const [cxpStatusFilter, setCxpStatusFilter] = useState<'all' | 'Pendiente' | 'Pagado' | 'Vencido'>('all');
+
+  const filteredCxcList = useMemo(() => {
+    return cxcList.filter(cxc => {
+      const matchesSearch = cxc.clienteNombre.toLowerCase().includes(cxcSearch.toLowerCase()) ||
+                            cxc.id.toLowerCase().includes(cxcSearch.toLowerCase()) ||
+                            (cxc.noteId && cxc.noteId.toLowerCase().includes(cxcSearch.toLowerCase()));
+      if (!matchesSearch) return false;
+
+      if (cxcStatusFilter === 'pendiente') return cxc.saldo === cxc.total;
+      if (cxcStatusFilter === 'parcial') return cxc.saldo > 0 && cxc.saldo < cxc.total;
+      if (cxcStatusFilter === 'liquidado') return cxc.saldo === 0;
+      return true;
+    });
+  }, [cxcList, cxcSearch, cxcStatusFilter]);
+
+  const filteredCxpList = useMemo(() => {
+    return cxpList.filter(cxp => {
+      const matchesSearch = cxp.supplier.toLowerCase().includes(cxpSearch.toLowerCase()) ||
+                            cxp.id.toLowerCase().includes(cxpSearch.toLowerCase()) ||
+                            (cxp.description && cxp.description.toLowerCase().includes(cxpSearch.toLowerCase()));
+      if (!matchesSearch) return false;
+
+      if (cxpStatusFilter !== 'all') return cxp.status === cxpStatusFilter;
+      return true;
+    });
+  }, [cxpList, cxpSearch, cxpStatusFilter]);
+
   // New Payable (CXP) Form State
   const [cxpForm, setCxpForm] = useState({
     supplier: '',
@@ -532,16 +566,46 @@ export const CobranzaPanel: React.FC<CobranzaPanelProps> = ({ userRole, userBran
           <div className="lg:col-span-2 space-y-6">
             {activeTab === 'cxc' ? (
             <div className="bg-[#050505] border border-brand-border/60 rounded-[2.5rem] p-8 shadow-2xl space-y-6">
-              <div>
-                <h3 className="text-xl font-black italic uppercase text-white tracking-widest flex items-center gap-3">
-                  <CreditCard className="text-brand-gold" size={20} />
-                  Perfil de Créditos Concedidos
-                </h3>
-                <p className="text-slate-500 text-[10px] uppercase font-bold mt-1 font-mono">Control y cobro de cartera de clientes</p>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brand-border/40 pb-4">
+                <div>
+                  <h3 className="text-xl font-black italic uppercase text-white tracking-widest flex items-center gap-3">
+                    <CreditCard className="text-brand-gold" size={20} />
+                    Perfil de Créditos Concedidos
+                  </h3>
+                  <p className="text-slate-500 text-[10px] uppercase font-bold mt-1 font-mono">Control y cobro de cartera de clientes</p>
+                </div>
+              </div>
+
+              {/* CXC Search & Filter Bar */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="relative md:col-span-1">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                  <input
+                    type="text"
+                    placeholder="Buscar cliente o folio..."
+                    value={cxcSearch}
+                    onChange={(e) => setCxcSearch(e.target.value)}
+                    className="w-full bg-brand-dark border border-brand-border rounded-xl pl-9 pr-4 py-2 text-xs text-white outline-none focus:border-brand-gold transition-all"
+                  />
+                </div>
+                <div className="flex bg-brand-dark border border-brand-border/60 p-0.5 rounded-xl md:col-span-2 overflow-x-auto custom-scrollbar-horizontal">
+                  {(['all', 'pendiente', 'parcial', 'liquidado'] as const).map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setCxcStatusFilter(f)}
+                      type="button"
+                      className={`flex-1 min-w-[70px] py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                        cxcStatusFilter === f ? 'bg-brand-gold text-black' : 'text-slate-500 hover:text-white'
+                      }`}
+                    >
+                      {f === 'all' ? 'Todos' : f === 'pendiente' ? 'Pendientes' : f === 'parcial' ? 'Parciales' : 'Liquidados'}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-4">
-                {cxcList.map(cxc => (
+                {filteredCxcList.map(cxc => (
                   <button 
                     key={cxc.id} 
                     onClick={() => setSelectedCxc(cxc)}
@@ -566,30 +630,69 @@ export const CobranzaPanel: React.FC<CobranzaPanelProps> = ({ userRole, userBran
                     <div className="text-right space-y-1">
                       <p className="text-[11px] font-black uppercase text-brand-gold font-mono">Saldo: ${cxc.saldo.toLocaleString()} MXN</p>
                       <p className="text-[9px] text-slate-500 font-mono">Límite Total: ${cxc.total.toLocaleString()} MXN</p>
+                      <span className={`inline-block px-2.5 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest mt-1 border ${
+                        cxc.saldo === cxc.total 
+                          ? 'bg-brand-red/10 text-brand-red border-brand-red/20' 
+                          : cxc.saldo > 0 
+                            ? 'bg-brand-gold/10 text-brand-gold border-brand-gold/20' 
+                            : 'bg-green-500/10 text-green-400 border-green-500/20'
+                      }`}>
+                        {cxc.saldo === cxc.total ? 'Pendiente' : cxc.saldo > 0 ? 'Parcial' : 'Liquidado'}
+                      </span>
                     </div>
                   </button>
                 ))}
 
-                {cxcList.length === 0 && (
+                {filteredCxcList.length === 0 && (
                   <div className="py-12 border border-dashed border-brand-border/40 rounded-3xl text-center text-slate-600 space-y-3">
                     <Clock size={36} className="mx-auto" />
-                    <p className="text-[10px] font-black uppercase tracking-widest">No hay créditos registrados.</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest">No hay créditos que coincidan con la búsqueda.</p>
                   </div>
                 )}
               </div>
             </div>
           ) : (
             <div className="bg-[#050505] border border-brand-border/60 rounded-[2.5rem] p-8 shadow-2xl space-y-6">
-              <div>
-                <h3 className="text-xl font-black italic uppercase text-white tracking-widest flex items-center gap-3">
-                  <Building2 className="text-brand-red" size={20} />
-                  Cartera de Proveedores
-                </h3>
-                <p className="text-slate-500 text-[10px] uppercase font-bold mt-1 font-mono">Cuentas por pagar con proveedores</p>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brand-border/40 pb-4">
+                <div>
+                  <h3 className="text-xl font-black italic uppercase text-white tracking-widest flex items-center gap-3">
+                    <Building2 className="text-brand-red" size={20} />
+                    Cartera de Proveedores
+                  </h3>
+                  <p className="text-slate-500 text-[10px] uppercase font-bold mt-1 font-mono">Cuentas por pagar con proveedores</p>
+                </div>
+              </div>
+
+              {/* CXP Search & Filter Bar */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="relative md:col-span-1">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                  <input
+                    type="text"
+                    placeholder="Buscar proveedor..."
+                    value={cxpSearch}
+                    onChange={(e) => setCxpSearch(e.target.value)}
+                    className="w-full bg-brand-dark border border-brand-border rounded-xl pl-9 pr-4 py-2 text-xs text-white outline-none focus:border-brand-red transition-all"
+                  />
+                </div>
+                <div className="flex bg-brand-dark border border-brand-border/60 p-0.5 rounded-xl md:col-span-2 overflow-x-auto custom-scrollbar-horizontal">
+                  {(['all', 'Pendiente', 'Pagado', 'Vencido'] as const).map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setCxpStatusFilter(f)}
+                      type="button"
+                      className={`flex-1 min-w-[70px] py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                        cxpStatusFilter === f ? 'bg-brand-red text-white' : 'text-slate-500 hover:text-white'
+                      }`}
+                    >
+                      {f === 'all' ? 'Todos' : f === 'Pendiente' ? 'Pendientes' : f === 'Pagado' ? 'Pagados' : 'Vencidos'}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-4">
-                {cxpList.map(cxp => (
+                {filteredCxpList.map(cxp => (
                   <button 
                     key={cxp.id} 
                     onClick={() => setSelectedCxp(cxp)}
@@ -613,15 +716,15 @@ export const CobranzaPanel: React.FC<CobranzaPanelProps> = ({ userRole, userBran
                     
                     <div className="text-right space-y-1">
                       <p className="text-[11px] font-black uppercase text-brand-red font-mono">${cxp.amount.toLocaleString()} MXN</p>
-                      <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${cxp.status === 'Pagado' ? 'bg-green-500/10 text-green-400' : cxp.status === 'Vencido' ? 'bg-brand-red/10 text-brand-red animate-pulse' : 'bg-brand-gold/10 text-brand-gold'}`}>{cxp.status}</span>
+                      <span className={`inline-block px-2.5 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest ${cxp.status === 'Pagado' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : cxp.status === 'Vencido' ? 'bg-brand-red/10 text-brand-red border border-brand-red/20 animate-pulse' : 'bg-brand-gold/10 text-brand-gold border border-brand-gold/20'}`}>{cxp.status}</span>
                     </div>
                   </button>
                 ))}
 
-                {cxpList.length === 0 && (
+                {filteredCxpList.length === 0 && (
                   <div className="py-12 border border-dashed border-brand-border/40 rounded-3xl text-center text-slate-600 space-y-3">
                     <Clock size={36} className="mx-auto" />
-                    <p className="text-[10px] font-black uppercase tracking-widest">No hay cuentas por pagar registradas.</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest">No hay cuentas por pagar que coincidan con la búsqueda.</p>
                   </div>
                 )}
               </div>
@@ -736,6 +839,18 @@ export const CobranzaPanel: React.FC<CobranzaPanelProps> = ({ userRole, userBran
                   </div>
                 ) : (
                   <div className="bg-brand-dark/40 border border-brand-border/40 rounded-2xl p-4 divide-y divide-brand-border/20 space-y-3 text-xs">
+                    <div className="flex justify-between py-2">
+                      <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Estatus de Crédito</span>
+                      <span className={`inline-block px-2.5 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border ${
+                        selectedCxc.saldo === selectedCxc.total 
+                          ? 'bg-brand-red/10 text-brand-red border-brand-red/20' 
+                          : selectedCxc.saldo > 0 
+                            ? 'bg-brand-gold/10 text-brand-gold border-brand-gold/20' 
+                            : 'bg-green-500/10 text-green-400 border-green-500/20'
+                      }`}>
+                        {selectedCxc.saldo === selectedCxc.total ? 'Pendiente' : selectedCxc.saldo > 0 ? 'Parcial' : 'Liquidado'}
+                      </span>
+                    </div>
                     <div className="flex justify-between py-2">
                       <span className="text-slate-500 font-bold uppercase text-[9px] tracking-widest">Saldo outstanding</span>
                       <span className="font-extrabold text-brand-gold text-sm">${selectedCxc.saldo.toLocaleString()} MXN</span>
