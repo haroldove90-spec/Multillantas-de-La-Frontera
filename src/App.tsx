@@ -41,7 +41,7 @@ import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { FacturacionPanel } from './components/FacturacionPanel';
 import { ControlOperativoPanel } from './components/ControlOperativoPanel';
 import { PlataformaCobroPanel } from './components/PlataformaCobroPanel';
-import { getTires, saveTires, addAuditLog, getLoggedUser, clearLoggedUser, getMercadoPagoConfig, saveMercadoPagoConfig } from './utils/persistentStorage';
+import { getTires, saveTires, addAuditLog, getLoggedUser, clearLoggedUser, getMercadoPagoConfig, saveMercadoPagoConfig, getCXC } from './utils/persistentStorage';
 import { LoginScreen } from './components/LoginScreen';
 
 const LOGO_URL = 'https://appdesign.appdesignproyectos.com/multillantas.png';
@@ -191,6 +191,92 @@ export default function App() {
   const filteredVehicles = useMemo(() => {
     return vehicles.filter(v => v.branch === branch);
   }, [vehicles, branch]);
+
+  // Dropdown states for interactive Header
+  const [isNotifDropdownOpen, setIsNotifDropdownOpen] = useState(false);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [readNotifIds, setReadNotifIds] = useState<string[]>([]);
+
+  // Real-time system notifications
+  const systemNotifications = useMemo(() => {
+    const list: Array<{
+      id: string;
+      title: string;
+      message: string;
+      category: 'stock' | 'taller' | 'credito';
+      targetTab: string;
+      urgency: 'alta' | 'media';
+      time: string;
+    }> = [];
+
+    // 1. Critical Stock in Active Branch
+    tiresList.forEach(tire => {
+      const stockInBranch = tire.branchStocks?.[branch] ?? 0;
+      if (tire.isActive !== false && stockInBranch <= 2) {
+        list.push({
+          id: `stock-${tire.id}-${branch}`,
+          title: `Stock Crítico: ${tire.brand} ${tire.model}`,
+          message: stockInBranch === 0 
+            ? `Agotado en Sucursal ${branch}. Se requiere traspaso urgente.`
+            : `Quedan solo ${stockInBranch} piezas en Sucursal ${branch}.`,
+          category: 'stock',
+          targetTab: 'inventario',
+          urgency: stockInBranch === 0 ? 'alta' : 'media',
+          time: 'En vivo'
+        });
+      }
+    });
+
+    // 2. Urgent Workshop Entries
+    vehicles.filter(v => v.branch === branch).forEach(v => {
+      if (v.status === 'recepcion') {
+        list.push({
+          id: `veh-rec-${v.id}`,
+          title: `Vehículo en Recepción: ${v.plate}`,
+          message: `${v.brand} ${v.model} esperando inspección en taller.`,
+          category: 'taller',
+          targetTab: 'taller',
+          urgency: 'media',
+          time: v.entryTime
+        });
+      }
+      if (v.inspection?.checklist.some(p => p.status === 'rojo')) {
+        list.push({
+          id: `veh-diag-${v.id}`,
+          title: `Diagnóstico de Falla: ${v.plate}`,
+          message: `Inspección detectó puntos críticos en rojo (${v.brand} ${v.model}).`,
+          category: 'taller',
+          targetTab: 'taller',
+          urgency: 'alta',
+          time: v.inspection.completedAt || 'Hoy'
+        });
+      }
+    });
+
+    // 3. Overdue credits
+    try {
+      const cxcList = getCXC();
+      cxcList.filter(c => c.status === 'Atrasado' || c.saldo > 6000).forEach(c => {
+        list.push({
+          id: `cxc-${c.id}`,
+          title: `Cobranza: ${c.clienteNombre}`,
+          message: `Saldo pendiente de $${c.saldo.toLocaleString()} MXN (Vence: ${c.dueDate}).`,
+          category: 'credito',
+          targetTab: 'credito-msi',
+          urgency: c.status === 'Atrasado' ? 'alta' : 'media',
+          time: c.dueDate
+        });
+      });
+    } catch (e) {
+      // Ignore
+    }
+
+    return list;
+  }, [tiresList, branch, vehicles]);
+
+  const unreadCount = useMemo(() => {
+    return systemNotifications.filter(n => !readNotifIds.includes(n.id)).length;
+  }, [systemNotifications, readNotifIds]);
 
   // Form State for Entry
   const [newVehicle, setNewVehicle] = useState({ plate: '', brand: '', model: '', reason: '' });
@@ -470,14 +556,252 @@ export default function App() {
             </div>
 
             {/* User Icon & Notifications for mobile/desktop toggle */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 relative">
               <ExchangeRateWidget />
-              {/* Cart is now strictly encapsulated inside the E-commerce module header */}
-              <button className="p-2 text-slate-400 hover:text-white rounded-full bg-brand-matte border border-brand-border hover:border-brand-red/30 transition-all">
-                <Bell size={18} />
-              </button>
-              <div className="w-8 h-8 rounded-full bg-brand-matte border border-brand-border flex items-center justify-center text-brand-red">
-                <User size={16} />
+
+              {/* Notification Center Popover */}
+              <div className="relative">
+                <button 
+                  onClick={() => {
+                    setIsNotifDropdownOpen(prev => !prev);
+                    setIsUserDropdownOpen(false);
+                  }}
+                  className="relative p-2.5 text-slate-400 hover:text-white rounded-full bg-brand-matte border border-brand-border hover:border-brand-gold/50 transition-all cursor-pointer"
+                  title="Centro de Notificaciones y Alertas"
+                >
+                  <Bell size={18} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-brand-red text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center animate-pulse border border-black shadow-lg">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Notifications Dropdown */}
+                <AnimatePresence>
+                  {isNotifDropdownOpen && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-40" 
+                        onClick={() => setIsNotifDropdownOpen(false)} 
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 mt-3 w-80 sm:w-96 bg-brand-dark/95 border border-brand-border/90 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] backdrop-blur-2xl z-50 overflow-hidden"
+                      >
+                        <div className="p-4 border-b border-brand-border/60 flex items-center justify-between bg-black/50">
+                          <div className="flex items-center gap-2">
+                            <Bell size={16} className="text-brand-gold" />
+                            <h3 className="text-xs font-black uppercase text-white tracking-widest">
+                              Notificaciones
+                            </h3>
+                            <span className="px-2 py-0.5 rounded-full bg-brand-gold/15 text-brand-gold text-[10px] font-mono font-bold">
+                              {unreadCount} activas
+                            </span>
+                          </div>
+                          {unreadCount > 0 && (
+                            <button
+                              onClick={() => setReadNotifIds(systemNotifications.map(n => n.id))}
+                              className="text-[10px] text-slate-400 hover:text-brand-gold font-bold uppercase transition-colors"
+                            >
+                              Marcar leídas
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="max-h-80 overflow-y-auto divide-y divide-brand-border/30 custom-scrollbar">
+                          {systemNotifications.length === 0 ? (
+                            <div className="p-8 text-center text-slate-500 text-xs">
+                              <CheckCircle2 size={28} className="mx-auto mb-2 text-green-500 opacity-60" />
+                              <p className="font-bold text-white">Todo en orden</p>
+                              <p className="text-[10px] text-slate-500 mt-1">No hay alertas críticas pendientes en Sucursal {branch}</p>
+                            </div>
+                          ) : (
+                            systemNotifications.map(notif => {
+                              const isRead = readNotifIds.includes(notif.id);
+                              return (
+                                <div
+                                  key={notif.id}
+                                  onClick={() => {
+                                    setReadNotifIds(prev => [...prev, notif.id]);
+                                    setActiveTab(notif.targetTab);
+                                    setIsNotifDropdownOpen(false);
+                                  }}
+                                  className={`p-3.5 hover:bg-white/5 cursor-pointer transition-colors flex gap-3 ${
+                                    isRead ? 'opacity-50' : 'bg-brand-red/5'
+                                  }`}
+                                >
+                                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                                    notif.urgency === 'alta' 
+                                      ? 'bg-brand-red/20 text-brand-red border border-brand-red/30' 
+                                      : 'bg-brand-gold/20 text-brand-gold border border-brand-gold/30'
+                                  }`}>
+                                    {notif.category === 'stock' && <Box size={14} />}
+                                    {notif.category === 'taller' && <Car size={14} />}
+                                    {notif.category === 'credito' && <CreditCard size={14} />}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-1">
+                                      <p className="text-[11px] font-black text-white truncate">{notif.title}</p>
+                                      <span className="text-[8px] font-mono text-slate-500 shrink-0">{notif.time}</span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
+                                      {notif.message}
+                                    </p>
+                                    <div className="mt-2 flex items-center gap-2">
+                                      <span className="text-[8px] font-black uppercase text-brand-gold hover:underline flex items-center gap-1">
+                                        Resolver alerta <ChevronRight size={10} />
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+
+                        <div className="p-3 bg-black/40 border-t border-brand-border/60 text-center">
+                          <p className="text-[9px] font-mono text-slate-500 uppercase tracking-widest">
+                            Sucursal Activa: <span className="text-white font-bold">{branch}</span>
+                          </p>
+                        </div>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* User Account / Profile Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    setIsUserDropdownOpen(prev => !prev);
+                    setIsNotifDropdownOpen(false);
+                  }}
+                  className="flex items-center gap-2 p-1.5 pl-2 pr-2.5 rounded-full bg-brand-matte border border-brand-border hover:border-brand-gold/50 transition-all cursor-pointer group"
+                  title="Menú de Perfil y Cuenta"
+                >
+                  <div className="w-8 h-8 rounded-full bg-brand-red flex items-center justify-center text-white font-black text-xs group-hover:scale-105 shadow-md shadow-brand-red/30 transition-transform">
+                    {(currentUser?.name || 'U')[0].toUpperCase()}
+                  </div>
+                  <div className="hidden sm:block text-left">
+                    <p className="text-[11px] font-black text-white leading-tight truncate max-w-[90px]">
+                      {currentUser?.name?.split(' ')[0] || 'Usuario'}
+                    </p>
+                    <p className="text-[8px] font-black uppercase tracking-wider text-brand-gold leading-none">
+                      {role}
+                    </p>
+                  </div>
+                </button>
+
+                {/* User Dropdown Menu */}
+                <AnimatePresence>
+                  {isUserDropdownOpen && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-40" 
+                        onClick={() => setIsUserDropdownOpen(false)} 
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 mt-3 w-72 bg-brand-dark/95 border border-brand-border/90 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] backdrop-blur-2xl z-50 overflow-hidden"
+                      >
+                        {/* Profile Info Header */}
+                        <div className="p-5 border-b border-brand-border/60 bg-black/50">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-brand-red flex items-center justify-center text-white font-black text-lg shadow-lg shadow-brand-red/30">
+                              {(currentUser?.name || 'U')[0].toUpperCase()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-bold text-white truncate">{currentUser?.name || 'Usuario'}</p>
+                              <p className="text-[10px] text-slate-400 font-mono">@{currentUser?.username || 'usuario'}</p>
+                              <div className="mt-1 flex items-center gap-1.5">
+                                <span className="px-2 py-0.5 rounded-full bg-brand-gold/15 text-brand-gold text-[9px] font-black uppercase tracking-wider">
+                                  {role}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Sucursal Selector */}
+                        <div className="p-4 border-b border-brand-border/40 bg-white/[0.02]">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                            Sucursal Activa
+                          </p>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {(['Centro', 'Norte', 'Frontera'] as Branch[]).map((b) => (
+                              <button
+                                key={b}
+                                onClick={() => setBranch(b)}
+                                className={`py-1.5 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                                  branch === b 
+                                    ? 'bg-brand-blue text-white shadow-md' 
+                                    : 'bg-brand-matte text-slate-400 hover:text-white border border-brand-border/40'
+                                }`}
+                              >
+                                {b}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Navigation Shortcuts */}
+                        <div className="p-2 space-y-1">
+                          <button
+                            onClick={() => { setActiveTab('dashboard'); setIsUserDropdownOpen(false); }}
+                            className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-all"
+                          >
+                            <LayoutDashboard size={14} className="text-brand-gold" />
+                            <span>Tablero Resumen</span>
+                          </button>
+                          
+                          <button
+                            onClick={() => { setActiveTab('taller'); setIsUserDropdownOpen(false); }}
+                            className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-all"
+                          >
+                            <Car size={14} className="text-brand-blue" />
+                            <span>Control de Taller</span>
+                          </button>
+
+                          <button
+                            onClick={() => { setActiveTab('inventario'); setIsUserDropdownOpen(false); }}
+                            className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-all"
+                          >
+                            <Box size={14} className="text-green-400" />
+                            <span>Inventario y Bodegas</span>
+                          </button>
+
+                          {role === 'Administrador' && (
+                            <button
+                              onClick={() => { setActiveTab('plataforma-cobro'); setIsUserDropdownOpen(false); }}
+                              className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-all"
+                            >
+                              <CreditCard size={14} className="text-brand-gold" />
+                              <span>Pasarela de Cobro</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Logout Button */}
+                        <div className="p-3 border-t border-brand-border/60 bg-black/40">
+                          <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-red/10 hover:bg-brand-red text-brand-red hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer border border-brand-red/20 hover:border-brand-red"
+                          >
+                            <LogOut size={14} /> Cerrar Sesión
+                          </button>
+                        </div>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </header>
@@ -516,10 +840,38 @@ export default function App() {
                   </header>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <StatCard label="Ventas Hoy" value={salesCount.toString()} diff="+15%" icon={<TrendingUp />} color="gold" />
-                    <StatCard label="Caja Total" value={`$${dailyRevenue.toLocaleString()}`} diff="Meta Lograda" icon={<CreditCard />} color="red" />
-                    <StatCard label="En Taller" value={workshopEntries.toString()} diff="Flujo Constante" icon={<Car />} color="blue" />
-                    <StatCard label="Stock Llantas" value={branchData.stock} diff="Actualizado" icon={<Box />} color="gold" />
+                    <StatCard 
+                      label="Ventas Hoy" 
+                      value={salesCount.toString()} 
+                      diff="+15%" 
+                      icon={<TrendingUp />} 
+                      color="gold" 
+                      onClick={() => setActiveTab('notas')}
+                    />
+                    <StatCard 
+                      label="Caja Total" 
+                      value={`$${dailyRevenue.toLocaleString()}`} 
+                      diff="Meta Lograda" 
+                      icon={<CreditCard />} 
+                      color="red" 
+                      onClick={() => setActiveTab('notas')}
+                    />
+                    <StatCard 
+                      label="En Taller" 
+                      value={workshopEntries.toString()} 
+                      diff="Flujo Constante" 
+                      icon={<Car />} 
+                      color="blue" 
+                      onClick={() => setActiveTab('taller')}
+                    />
+                    <StatCard 
+                      label="Stock Llantas" 
+                      value={branchData.stock} 
+                      diff="Actualizado" 
+                      icon={<Box />} 
+                      color="gold" 
+                      onClick={() => setActiveTab('inventario')}
+                    />
                   </div>
 
                   <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
@@ -1705,9 +2057,14 @@ const SidebarLink: React.FC<SidebarLinkProps> = ({ active, icon, label, onClick 
   );
 };
 
-function StatCard({ label, value, diff, icon, color }: any) {
+function StatCard({ label, value, diff, icon, color, onClick }: any) {
   return (
-    <div className="bg-brand-matte border border-brand-border rounded-3xl p-6 relative group overflow-hidden hover:border-white/10 transition-all shadow-xl">
+    <div 
+      onClick={onClick}
+      className={`bg-brand-matte border border-brand-border rounded-3xl p-6 relative group overflow-hidden transition-all shadow-xl ${
+        onClick ? 'cursor-pointer hover:border-brand-gold/60 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98]' : 'hover:border-white/10'
+      }`}
+    >
       <div className={`absolute top-0 right-0 w-24 h-24 blur-3xl opacity-10 group-hover:opacity-25 transition-all ${
         color === 'blue' ? 'bg-brand-blue' : 
         color === 'red' ? 'bg-brand-red' : 
@@ -1727,7 +2084,14 @@ function StatCard({ label, value, diff, icon, color }: any) {
       </div>
       <div>
         <p className="text-3xl font-black text-white italic tracking-tighter">{value}</p>
-        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.1em] mt-1 group-hover:text-slate-400 transition-colors">{label}</p>
+        <div className="flex items-center justify-between mt-1">
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.1em] group-hover:text-slate-300 transition-colors">{label}</p>
+          {onClick && (
+            <span className="text-[9px] font-black text-brand-gold/60 group-hover:text-brand-gold flex items-center gap-0.5 transition-colors">
+              Ver detalle →
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

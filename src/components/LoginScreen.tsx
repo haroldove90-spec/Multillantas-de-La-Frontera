@@ -170,17 +170,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 onSubmit={handleLogin}
                 className="space-y-6"
               >
-                {/* Seed information hint */}
-                <div className="bg-brand-gold/5 border border-brand-gold/20 rounded-2xl p-4 flex gap-3 text-slate-300">
-                  <div className="p-1.5 bg-brand-gold/10 rounded-lg text-brand-gold h-fit">
-                    <Sparkles size={16} />
-                  </div>
-                  <div>
-                    <h4 className="text-[10px] font-black uppercase text-brand-gold tracking-widest">Credenciales del Sistema</h4>
-                    <p className="text-[11px] text-slate-400 mt-1">Usa <span className="text-white font-mono font-bold">admin1</span> con contraseña <span className="text-white font-mono font-bold">admin123</span> para acceder como Administrador General.</p>
-                  </div>
-                </div>
-
                 {loginError && (
                   <motion.div 
                     initial={{ opacity: 0, y: -5 }} 

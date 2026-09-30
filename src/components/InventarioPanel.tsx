@@ -26,7 +26,10 @@ import {
   Sparkles,
   Edit2,
   Eye,
-  EyeOff
+  EyeOff,
+  Upload,
+  Save,
+  FileSpreadsheet
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -37,7 +40,8 @@ import {
   StockTransfer, 
   TransferStatus,
   MovementType,
-  WarehouseName
+  WarehouseName,
+  TireCategory
 } from '../types';
 import { getTires, saveTires, addAuditLog } from '../utils/persistentStorage';
 
@@ -56,11 +60,39 @@ interface LogNotification {
 const NOTIFICATIONS_STORAGE_KEY = 'multillantas_warehouse_notifs_v1';
 
 export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) => {
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'table'>('grid');
   const [tires, setTires] = useState<Tire[]>(() => getTires());
   const [exchangeRate, setExchangeRate] = useState(20.50);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('Todas');
+  const [selectedCategory, setSelectedCategory] = useState<'Todas' | 'Nueva' | 'Seminueva' | 'Rines'>('Todas');
+
+  // Excel-like editable table state
+  const [tableEditableData, setTableEditableData] = useState<Record<string, {
+    price: number;
+    centro: number;
+    norte: number;
+    frontera: number;
+    bodega1: number;
+    bodega2: number;
+    saved?: boolean;
+  }>>({});
+
+  useEffect(() => {
+    const initial: typeof tableEditableData = {};
+    tires.forEach(t => {
+      initial[t.id] = {
+        price: t.price || 0,
+        centro: t.branchStocks?.['Centro'] || 0,
+        norte: t.branchStocks?.['Norte'] || 0,
+        frontera: t.branchStocks?.['Frontera'] || 0,
+        bodega1: t.warehouseStocks?.['Bodega 1'] || 0,
+        bodega2: t.warehouseStocks?.['Bodega 2'] || 0,
+        saved: false
+      };
+    });
+    setTableEditableData(initial);
+  }, [tires]);
   
   // Custom notifications state
   const [notifications, setNotifications] = useState<LogNotification[]>(() => {
@@ -94,6 +126,7 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
   const [productForm, setProductForm] = useState({
     brand: '',
     model: '',
+    category: 'Nueva' as TireCategory,
     width: 205,
     profile: 55,
     rim: 16,
@@ -120,8 +153,8 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
   ]);
   const [transferError, setTransferError] = useState('');
 
-  // Individual Entrada Form State
-  const [entradaTarget, setEntradaTarget] = useState<WarehouseName>('Bodega 1');
+  // Individual Entrada Form State (expanded to support all branches & bodegas)
+  const [entradaTarget, setEntradaTarget] = useState<Branch | WarehouseName>('Bodega 1');
   const [entradaTireId, setEntradaTireId] = useState('');
   const [entradaQty, setEntradaQty] = useState<number>(10);
   const [entradaReason, setEntradaReason] = useState('Importación Directa');
@@ -165,11 +198,123 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
                            tire.size.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesBrand = selectedBrand === 'Todas' || tire.brand === selectedBrand;
       
-      // If we are looking at branch stocks, show only if total stock > 0.
-      // If looking at Bodega 1 or Bodega 2, show those catalog tires
-      return matchesSearch && matchesBrand;
+      let matchesCategory = true;
+      if (selectedCategory === 'Nueva') {
+        matchesCategory = tire.category === 'Nueva' || (!tire.category && !tire.model.toLowerCase().includes('usad') && !tire.model.toLowerCase().includes('rin'));
+      } else if (selectedCategory === 'Seminueva') {
+        matchesCategory = tire.category === 'Seminueva' || tire.model.toLowerCase().includes('usad') || tire.model.toLowerCase().includes('seminuev');
+      } else if (selectedCategory === 'Rines') {
+        matchesCategory = tire.category === 'Rines' || tire.model.toLowerCase().includes('rin') || tire.brand.toLowerCase().includes('rin');
+      }
+
+      return matchesSearch && matchesBrand && matchesCategory;
     });
-  }, [tires, searchTerm, selectedBrand]);
+  }, [tires, searchTerm, selectedBrand, selectedCategory]);
+
+  // Excel Table Handlers
+  const handleSaveTableRow = (tireId: string) => {
+    const editData = tableEditableData[tireId];
+    if (!editData) return;
+
+    const updated = tires.map(t => {
+      if (t.id === tireId) {
+        const newBranchStocks = {
+          Centro: Number(editData.centro || 0),
+          Norte: Number(editData.norte || 0),
+          Frontera: Number(editData.frontera || 0)
+        };
+        const newWarehouseStocks = {
+          'Bodega 1': Number(editData.bodega1 || 0),
+          'Bodega 2': Number(editData.bodega2 || 0)
+        };
+        const newTotal = Object.values(newBranchStocks).reduce((a, b) => a + b, 0) + Object.values(newWarehouseStocks).reduce((a, b) => a + b, 0);
+
+        return {
+          ...t,
+          price: Number(editData.price || 0),
+          stock: newTotal,
+          branchStocks: newBranchStocks,
+          warehouseStocks: newWarehouseStocks
+        };
+      }
+      return t;
+    });
+
+    setTires(updated);
+    saveTires(updated);
+    setTableEditableData(prev => ({
+      ...prev,
+      [tireId]: { ...prev[tireId], saved: true }
+    }));
+
+    setTimeout(() => {
+      setTableEditableData(prev => ({
+        ...prev,
+        [tireId]: { ...prev[tireId], saved: false }
+      }));
+    }, 2000);
+
+    const t = tires.find(item => item.id === tireId);
+    addAndSaveNotification('system', 'Guardado en Tabla Rápida', `Se actualizaron existencias y precio de ${t?.brand} ${t?.model}.`);
+  };
+
+  const handleSaveAllTableRows = () => {
+    const updated = tires.map(t => {
+      const editData = tableEditableData[t.id];
+      if (editData) {
+        const newBranchStocks = {
+          Centro: Number(editData.centro || 0),
+          Norte: Number(editData.norte || 0),
+          Frontera: Number(editData.frontera || 0)
+        };
+        const newWarehouseStocks = {
+          'Bodega 1': Number(editData.bodega1 || 0),
+          'Bodega 2': Number(editData.bodega2 || 0)
+        };
+        const newTotal = Object.values(newBranchStocks).reduce((a, b) => a + b, 0) + Object.values(newWarehouseStocks).reduce((a, b) => a + b, 0);
+
+        return {
+          ...t,
+          price: Number(editData.price || 0),
+          stock: newTotal,
+          branchStocks: newBranchStocks,
+          warehouseStocks: newWarehouseStocks
+        };
+      }
+      return t;
+    });
+
+    setTires(updated);
+    saveTires(updated);
+    addAndSaveNotification('system', 'Inventario Masivo Actualizado', 'Se guardaron todos los cambios de existencias y precios del catálogo.');
+  };
+
+  const handleExportCSV = () => {
+    const headers = ['ID', 'Marca', 'Modelo', 'Medida', 'Rin', 'Categoría', 'Precio', 'Stock Centro', 'Stock Norte', 'Stock Frontera', 'Stock Bodega 1', 'Stock Bodega 2', 'Stock Total'];
+    const rows = filteredTires.map(t => [
+      t.id,
+      t.brand,
+      `"${t.model}"`,
+      t.size,
+      t.rim,
+      t.category || 'Nueva',
+      t.price,
+      t.branchStocks?.['Centro'] || 0,
+      t.branchStocks?.['Norte'] || 0,
+      t.branchStocks?.['Frontera'] || 0,
+      t.warehouseStocks?.['Bodega 1'] || 0,
+      t.warehouseStocks?.['Bodega 2'] || 0,
+      t.stock
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `inventario_multillantas_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleUpdateExchangeRate = () => {
     const newRate = 20.30 + Math.random() * 0.40;
@@ -185,6 +330,7 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
       setProductForm({
         brand: tire.brand,
         model: tire.model,
+        category: tire.category || 'Nueva',
         width: tire.width || 205,
         profile: tire.profile || 55,
         rim: tire.rim || 16,
@@ -203,6 +349,7 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
       setProductForm({
         brand: '',
         model: '',
+        category: 'Nueva',
         width: 205,
         profile: 55,
         rim: 16,
@@ -297,6 +444,7 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
             profile: Number(productForm.profile),
             rim: Number(productForm.rim),
             size: sizeStr,
+            category: productForm.category || 'Nueva',
             price: Number(productForm.price),
             discount: productForm.discount ? Number(productForm.discount) : undefined,
             image: productForm.image || 'https://images.unsplash.com/photo-1578844251758-2f71da64c96f?auto=format&fit=crop&q=80&w=300',
@@ -336,6 +484,7 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
         id: newId,
         brand: productForm.brand,
         model: productForm.model,
+        category: productForm.category || 'Nueva',
         width: Number(productForm.width),
         profile: Number(productForm.profile),
         rim: Number(productForm.rim),
@@ -529,7 +678,7 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
     setTransferCart([{ tireId: '', quantity: 1 }]);
   };
 
-  // Perform Individual Entrada
+  // Perform Individual Entrada (supports all branches & bodegas)
   const handlePerformEntrada = (e: React.FormEvent) => {
     e.preventDefault();
     setEntradaError('');
@@ -545,18 +694,31 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
 
     const updatedTires = tires.map(t => {
       if (t.id === entradaTireId) {
-        const currentStocks = t.warehouseStocks || { 'Bodega 1': 0, 'Bodega 2': 0 };
-        const newWarehouseStocks = {
-          ...currentStocks,
-          [entradaTarget]: (currentStocks[entradaTarget] || 0) + entradaQty
-        };
-
-        // Increment general stock sum
-        return {
-          ...t,
-          stock: t.stock + entradaQty,
-          warehouseStocks: newWarehouseStocks
-        };
+        if (['Centro', 'Norte', 'Frontera'].includes(entradaTarget)) {
+          const b = entradaTarget as Branch;
+          const currentStock = t.branchStocks?.[b] || 0;
+          const newBranchStocks = {
+            ...t.branchStocks,
+            [b]: currentStock + entradaQty
+          };
+          return {
+            ...t,
+            stock: t.stock + entradaQty,
+            branchStocks: newBranchStocks
+          };
+        } else {
+          const w = entradaTarget as WarehouseName;
+          const currentStocks = t.warehouseStocks || { 'Bodega 1': 0, 'Bodega 2': 0 };
+          const newWarehouseStocks = {
+            ...currentStocks,
+            [w]: (currentStocks[w] || 0) + entradaQty
+          };
+          return {
+            ...t,
+            stock: t.stock + entradaQty,
+            warehouseStocks: newWarehouseStocks
+          };
+        }
       }
       return t;
     });
@@ -774,17 +936,46 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
                 <button 
                   onClick={() => setViewMode('grid')}
                   className={`p-2.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-brand-red text-white' : 'text-slate-500 hover:text-white'}`}
+                  title="Vista Cuadrícula"
                 >
                   <Grid size={16} />
                 </button>
                 <button 
                   onClick={() => setViewMode('list')}
                   className={`p-2.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-brand-red text-white' : 'text-slate-500 hover:text-white'}`}
+                  title="Vista Lista"
                 >
                   <List size={16} />
                 </button>
+                <button 
+                  onClick={() => setViewMode('table')}
+                  className={`p-2.5 rounded-lg transition-all flex items-center gap-1.5 ${viewMode === 'table' ? 'bg-brand-gold text-black font-black shadow-md shadow-brand-gold/20' : 'text-slate-500 hover:text-white'}`}
+                  title="Vista Tabular / Edición Rápida estilo Excel"
+                >
+                  <FileSpreadsheet size={16} />
+                  <span className="text-[10px] font-mono font-black uppercase hidden sm:inline">Excel</span>
+                </button>
               </div>
             </div>
+          </div>
+
+          {/* Category Filter Pills */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Categoría:</span>
+            {(['Todas', 'Nueva', 'Seminueva', 'Rines'] as const).map(cat => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                  selectedCategory === cat
+                    ? 'bg-brand-gold text-black shadow-lg shadow-brand-gold/20'
+                    : 'bg-brand-matte border border-brand-border text-slate-400 hover:text-white hover:border-brand-gold/40'
+                }`}
+              >
+                {cat === 'Todas' ? 'Todo el Catálogo' : cat === 'Nueva' ? 'Llantas Nuevas' : cat === 'Seminueva' ? 'Seminuevas/Usadas' : 'Rines'}
+              </button>
+            ))}
           </div>
 
           {/* Current view disclaimer */}
@@ -816,6 +1007,238 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
           </div>
 
           {/* Tires stock layout */}
+          {viewMode === 'table' ? (
+            <div className="bg-brand-matte border border-brand-border rounded-3xl p-6 shadow-2xl space-y-4 overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-brand-border/60">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-brand-gold/10 rounded-xl text-brand-gold border border-brand-gold/20">
+                    <FileSpreadsheet size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-white uppercase italic">
+                      Planilla de Edición Rápida <span className="text-brand-gold font-mono">Modo Excel</span>
+                    </h4>
+                    <p className="text-[10px] text-slate-500 font-mono">
+                      {filteredTires.length} productos listados • Modifica precios y existencias directamente por sucursal
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleExportCSV}
+                    className="px-4 py-2 bg-brand-dark hover:bg-white/5 border border-brand-border text-slate-300 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5"
+                    title="Descargar archivo CSV"
+                  >
+                    <Download size={13} /> Exportar CSV
+                  </button>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={handleSaveAllTableRows}
+                      className="px-5 py-2 bg-brand-gold hover:bg-brand-gold/90 text-black rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-brand-gold/20 transition-all flex items-center gap-1.5 active:scale-95"
+                    >
+                      <Save size={13} /> Guardar Todo
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-brand-border/60 text-[9px] font-black uppercase tracking-wider text-slate-500 bg-black/40">
+                      <th className="py-3 px-3">Producto</th>
+                      <th className="py-3 px-2 text-center">Tipo</th>
+                      <th className="py-3 px-2 text-center">Medida / Rin</th>
+                      <th className="py-3 px-3 text-right min-w-[110px]">Precio ($ MXN)</th>
+                      <th className="py-3 px-2 text-center min-w-[80px] text-blue-400">Centro</th>
+                      <th className="py-3 px-2 text-center min-w-[80px] text-yellow-400">Norte</th>
+                      <th className="py-3 px-2 text-center min-w-[80px] text-red-400">Frontera</th>
+                      <th className="py-3 px-2 text-center min-w-[80px] text-amber-500">Bodega 1</th>
+                      <th className="py-3 px-2 text-center min-w-[80px] text-orange-400">Bodega 2</th>
+                      <th className="py-3 px-3 text-center font-bold text-white">Total</th>
+                      <th className="py-3 px-3 text-center">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-brand-border/30 font-sans">
+                    {filteredTires.map(tire => {
+                      const edit = tableEditableData[tire.id] || {
+                        price: tire.price || 0,
+                        centro: tire.branchStocks?.['Centro'] || 0,
+                        norte: tire.branchStocks?.['Norte'] || 0,
+                        frontera: tire.branchStocks?.['Frontera'] || 0,
+                        bodega1: tire.warehouseStocks?.['Bodega 1'] || 0,
+                        bodega2: tire.warehouseStocks?.['Bodega 2'] || 0,
+                        saved: false
+                      };
+                      const rowTotal = Number(edit.centro || 0) + Number(edit.norte || 0) + Number(edit.frontera || 0) + Number(edit.bodega1 || 0) + Number(edit.bodega2 || 0);
+
+                      return (
+                        <tr key={tire.id} className="hover:bg-white/[0.02] transition-colors">
+                          {/* Product Info */}
+                          <td className="py-2.5 px-3">
+                            <div className="flex items-center gap-3">
+                              <img 
+                                src={tire.image} 
+                                alt={tire.model} 
+                                className="w-8 h-8 object-cover rounded-lg bg-black/60 border border-brand-border/60 shrink-0" 
+                              />
+                              <div className="min-w-0">
+                                <p className="font-black text-white text-xs truncate max-w-[150px]">{tire.brand}</p>
+                                <p className="text-[10px] text-slate-400 truncate max-w-[150px]">{tire.model}</p>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Category Badge */}
+                          <td className="py-2.5 px-2 text-center">
+                            <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-white/5 border border-brand-border text-slate-300">
+                              {tire.category || 'Nueva'}
+                            </span>
+                          </td>
+
+                          {/* Size & Rim */}
+                          <td className="py-2.5 px-2 text-center font-mono text-[11px] text-slate-300">
+                            {tire.size} (R{tire.rim})
+                          </td>
+
+                          {/* Price */}
+                          <td className="py-2.5 px-3 text-right">
+                            <input 
+                              type="number"
+                              disabled={!isAdmin}
+                              value={edit.price}
+                              onChange={(e) => {
+                                const val = Math.max(0, parseInt(e.target.value) || 0);
+                                setTableEditableData(prev => ({
+                                  ...prev,
+                                  [tire.id]: { ...prev[tire.id], price: val }
+                                }));
+                              }}
+                              className="w-24 bg-black/60 border border-brand-border/80 focus:border-brand-gold rounded-lg px-2 py-1 text-right text-xs text-brand-gold font-mono font-bold outline-none"
+                            />
+                          </td>
+
+                          {/* Centro Stock */}
+                          <td className="py-2.5 px-2 text-center">
+                            <input 
+                              type="number"
+                              disabled={!isAdmin}
+                              value={edit.centro}
+                              onChange={(e) => {
+                                const val = Math.max(0, parseInt(e.target.value) || 0);
+                                setTableEditableData(prev => ({
+                                  ...prev,
+                                  [tire.id]: { ...prev[tire.id], centro: val }
+                                }));
+                              }}
+                              className="w-16 bg-black/60 border border-brand-border/80 focus:border-brand-gold rounded-lg px-1.5 py-1 text-center text-xs text-white font-mono font-bold outline-none"
+                            />
+                          </td>
+
+                          {/* Norte Stock */}
+                          <td className="py-2.5 px-2 text-center">
+                            <input 
+                              type="number"
+                              disabled={!isAdmin}
+                              value={edit.norte}
+                              onChange={(e) => {
+                                const val = Math.max(0, parseInt(e.target.value) || 0);
+                                setTableEditableData(prev => ({
+                                  ...prev,
+                                  [tire.id]: { ...prev[tire.id], norte: val }
+                                }));
+                              }}
+                              className="w-16 bg-black/60 border border-brand-border/80 focus:border-brand-gold rounded-lg px-1.5 py-1 text-center text-xs text-white font-mono font-bold outline-none"
+                            />
+                          </td>
+
+                          {/* Frontera Stock */}
+                          <td className="py-2.5 px-2 text-center">
+                            <input 
+                              type="number"
+                              disabled={!isAdmin}
+                              value={edit.frontera}
+                              onChange={(e) => {
+                                const val = Math.max(0, parseInt(e.target.value) || 0);
+                                setTableEditableData(prev => ({
+                                  ...prev,
+                                  [tire.id]: { ...prev[tire.id], frontera: val }
+                                }));
+                              }}
+                              className="w-16 bg-black/60 border border-brand-border/80 focus:border-brand-gold rounded-lg px-1.5 py-1 text-center text-xs text-white font-mono font-bold outline-none"
+                            />
+                          </td>
+
+                          {/* Bodega 1 */}
+                          <td className="py-2.5 px-2 text-center">
+                            <input 
+                              type="number"
+                              disabled={!isAdmin}
+                              value={edit.bodega1}
+                              onChange={(e) => {
+                                const val = Math.max(0, parseInt(e.target.value) || 0);
+                                setTableEditableData(prev => ({
+                                  ...prev,
+                                  [tire.id]: { ...prev[tire.id], bodega1: val }
+                                }));
+                              }}
+                              className="w-16 bg-black/60 border border-brand-border/80 focus:border-brand-gold rounded-lg px-1.5 py-1 text-center text-xs text-white font-mono font-bold outline-none"
+                            />
+                          </td>
+
+                          {/* Bodega 2 */}
+                          <td className="py-2.5 px-2 text-center">
+                            <input 
+                              type="number"
+                              disabled={!isAdmin}
+                              value={edit.bodega2}
+                              onChange={(e) => {
+                                const val = Math.max(0, parseInt(e.target.value) || 0);
+                                setTableEditableData(prev => ({
+                                  ...prev,
+                                  [tire.id]: { ...prev[tire.id], bodega2: val }
+                                }));
+                              }}
+                              className="w-16 bg-black/60 border border-brand-border/80 focus:border-brand-gold rounded-lg px-1.5 py-1 text-center text-xs text-white font-mono font-bold outline-none"
+                            />
+                          </td>
+
+                          {/* Row Total */}
+                          <td className="py-2.5 px-3 text-center font-mono font-black text-sm text-brand-gold">
+                            {rowTotal}
+                          </td>
+
+                          {/* Action Button */}
+                          <td className="py-2.5 px-3 text-center">
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => handleSaveTableRow(tire.id)}
+                                className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 mx-auto ${
+                                  edit.saved 
+                                    ? 'bg-green-500 text-black font-bold' 
+                                    : 'bg-brand-matte border border-brand-border hover:border-brand-gold text-slate-300 hover:text-white'
+                                }`}
+                              >
+                                {edit.saved ? (
+                                  <>✓ Guardado</>
+                                ) : (
+                                  <>Guardar</>
+                                )}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
           <div className={viewMode === 'grid' ? 
             "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" : 
             "flex flex-col gap-4"
@@ -1070,6 +1493,7 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
               })}
             </AnimatePresence>
           </div>
+          )}
         </div>
 
         {/* Right Side: Persistent Notifications & Audit Logs list */}
@@ -1376,11 +1800,18 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Destino de la Entrada</label>
                   <select 
                     value={entradaTarget}
-                    onChange={(e) => setEntradaTarget(e.target.value as WarehouseName)}
+                    onChange={(e) => setEntradaTarget(e.target.value as any)}
                     className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand-gold cursor-pointer font-black"
                   >
-                    <option value="Bodega 1">BODEGA 1 (ALMACÉN GENERAL)</option>
-                    <option value="Bodega 2">BODEGA 2 (IMPORTACIONES DIRECTAS)</option>
+                    <optgroup label="Sucursales Físicas / Fiscales" className="bg-brand-dark text-brand-gold font-bold">
+                      <option value="Centro" className="text-white">SUCURSAL CENTRO</option>
+                      <option value="Norte" className="text-white">SUCURSAL NORTE</option>
+                      <option value="Frontera" className="text-white">SUCURSAL FRONTERA</option>
+                    </optgroup>
+                    <optgroup label="Bodegas y Almacenes Centrales" className="bg-brand-dark text-slate-300 font-bold">
+                      <option value="Bodega 1" className="text-white">BODEGA 1 (ALMACÉN GENERAL)</option>
+                      <option value="Bodega 2" className="text-white">BODEGA 2 (IMPORTACIONES DIRECTAS)</option>
+                    </optgroup>
                   </select>
                 </div>
 
@@ -1484,7 +1915,7 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
               </div>
 
               <form onSubmit={handleSaveProduct} className="p-8 space-y-6 overflow-y-auto flex-1">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Marca</label>
                     <input 
@@ -1507,6 +1938,19 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
                       onChange={(e) => setProductForm({ ...productForm, model: e.target.value })}
                       className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand-red font-bold"
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Categoría</label>
+                    <select
+                      value={productForm.category || 'Nueva'}
+                      onChange={(e) => setProductForm({ ...productForm, category: e.target.value as TireCategory })}
+                      className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand-red font-bold cursor-pointer"
+                    >
+                      <option value="Nueva">Llanta Nueva</option>
+                      <option value="Seminueva">Llanta Seminueva / Usada</option>
+                      <option value="Rines">Rin / Rines</option>
+                    </select>
                   </div>
                 </div>
 
@@ -1575,15 +2019,56 @@ export const InventarioPanel: React.FC<InventarioPanelProps> = ({ userRole }) =>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Imagen URL del Neumático</label>
-                  <input 
-                    type="text"
-                    placeholder="URL o deje en blanco para usar una genérica"
-                    value={productForm.image}
-                    onChange={(e) => setProductForm({ ...productForm, image: e.target.value })}
-                    className="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-brand-red font-bold"
-                  />
+                {/* Image upload with local disk file picker & preview */}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1 flex items-center justify-between">
+                    <span>Fotografía del Producto</span>
+                    <span className="text-[9px] text-brand-gold font-normal">Carga archivo local o pega URL</span>
+                  </label>
+                  
+                  <div className="flex flex-col sm:flex-row gap-3 items-center">
+                    <div className="w-16 h-16 rounded-2xl bg-black/60 border border-brand-border flex items-center justify-center overflow-hidden shrink-0 relative">
+                      {productForm.image ? (
+                        <img src={productForm.image} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <ImageIcon size={22} className="text-slate-600" />
+                      )}
+                    </div>
+
+                    <div className="flex-1 w-full space-y-2">
+                      <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-dark hover:bg-white/5 border border-dashed border-brand-gold/40 hover:border-brand-gold rounded-xl cursor-pointer text-xs font-bold text-brand-gold transition-all">
+                        <Upload size={14} /> Seleccionar archivo de imagen del equipo
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              if (file.size > 5 * 1024 * 1024) {
+                                alert('El archivo no debe exceder los 5MB.');
+                                return;
+                              }
+                              const reader = new FileReader();
+                              reader.onload = (evt) => {
+                                if (evt.target?.result) {
+                                  setProductForm(prev => ({ ...prev, image: evt.target!.result as string }));
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="hidden" 
+                        />
+                      </label>
+                      <input 
+                        type="text"
+                        placeholder="O ingresa un enlace / URL de imagen..."
+                        value={productForm.image}
+                        onChange={(e) => setProductForm({ ...productForm, image: e.target.value })}
+                        className="w-full bg-brand-dark border border-brand-border rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-brand-red font-mono"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-4 pt-4 border-t border-brand-border/40">

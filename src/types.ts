@@ -66,11 +66,13 @@ export interface VehicleEntry {
 }
 
 export type WarehouseName = 'Bodega 1' | 'Bodega 2';
+export type TireCategory = 'Nueva' | 'Seminueva' | 'Rines';
 
 export interface Tire {
   id: string;
   brand: string;
   model: string;
+  category?: TireCategory;
   width: number;
   profile: number;
   rim: number;
