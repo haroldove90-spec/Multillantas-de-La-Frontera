@@ -14,12 +14,11 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { SystemUser, Role, Branch } from '../types';
 import { getSystemUsers, saveSystemUsers, saveLoggedUser } from '../utils/persistentStorage';
+import { AppLogo } from './AppLogo';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: SystemUser) => void;
 }
-
-const LOGO_URL = 'https://appdesign.appdesignproyectos.com/multillantas.png';
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
@@ -115,14 +114,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         className="w-full max-w-xl bg-brand-dark/40 border border-brand-border/80 backdrop-blur-3xl rounded-[3rem] shadow-[0_0_80px_rgba(230,190,0,0.06)] overflow-hidden flex flex-col"
       >
         <div className="p-8 md:p-12 pb-6 border-b border-brand-border/40 bg-black/60 flex flex-col items-center text-center">
-          <motion.img 
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            src={LOGO_URL} 
-            alt="Multillantas de la Frontera" 
-            className="h-16 md:h-20 w-auto object-contain mb-6 hover:brightness-110 transition-all cursor-pointer"
-          />
+          <AppLogo className="h-16 md:h-20 w-auto mb-6" showSubtitle />
           <h2 className="text-2xl md:text-3xl font-black italic uppercase text-white tracking-tight flex items-center gap-2">
             MULTILLANTAS <span className="text-brand-gold">FRONTERA</span>
           </h2>

@@ -306,6 +306,8 @@ const INITIAL_USERS: SystemUser[] = [
     name: 'Administrador Principal',
     role: 'Administrador',
     branch: 'Frontera',
+    permissions: ['dashboard', 'ecommerce', 'taller', 'clientes', 'notas', 'credito-msi', 'facturacion', 'control-operativo', 'inventario', 'analytics', 'plataforma-cobro', 'usuarios'],
+    isActive: true,
     createdAt: '2026-06-09T14:20:00.000Z'
   },
   {
@@ -315,6 +317,41 @@ const INITIAL_USERS: SystemUser[] = [
     name: 'Vendedor Centro',
     role: 'Vendedor',
     branch: 'Centro',
+    permissions: ['dashboard', 'ecommerce', 'taller', 'clientes', 'facturacion', 'control-operativo', 'inventario'],
+    isActive: true,
+    createdAt: '2026-06-09T14:20:00.000Z'
+  },
+  {
+    id: 'usr-tecnico',
+    username: 'tecnico1',
+    password: 'tecnico123',
+    name: 'Técnico Especialista Norte',
+    role: 'Técnico',
+    branch: 'Norte',
+    permissions: ['dashboard', 'taller'],
+    isActive: true,
+    createdAt: '2026-06-09T14:20:00.000Z'
+  },
+  {
+    id: 'usr-cliente',
+    username: 'cliente1',
+    password: 'cliente123',
+    name: 'Cliente Frecuente Flotilla',
+    role: 'Cliente',
+    branch: 'Centro',
+    permissions: ['taller'],
+    isActive: true,
+    createdAt: '2026-06-09T14:20:00.000Z'
+  },
+  {
+    id: 'usr-secretaria',
+    username: 'secretaria1',
+    password: 'factura123',
+    name: 'Secretaría y Facturación Frontera',
+    role: 'Secretaria Facturista',
+    branch: 'Frontera',
+    permissions: ['dashboard', 'clientes', 'notas', 'credito-msi', 'facturacion', 'inventario', 'analytics'],
+    isActive: true,
     createdAt: '2026-06-09T14:20:00.000Z'
   }
 ];
@@ -327,7 +364,12 @@ export const getSystemUsers = (): SystemUser[] => {
     return INITIAL_USERS;
   }
   try {
-    return JSON.parse(stored);
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(INITIAL_USERS));
+      return INITIAL_USERS;
+    }
+    return parsed;
   } catch (e) {
     return INITIAL_USERS;
   }
@@ -340,9 +382,49 @@ export const saveSystemUsers = (users: SystemUser[]) => {
   }
 };
 
+export const addSystemUser = (user: SystemUser): SystemUser => {
+  const users = getSystemUsers();
+  const updated = [...users, user];
+  saveSystemUsers(updated);
+  return user;
+};
+
+export const updateSystemUser = (updatedUser: SystemUser): boolean => {
+  const users = getSystemUsers();
+  const index = users.findIndex(u => u.id === updatedUser.id);
+  if (index === -1) return false;
+  users[index] = updatedUser;
+  saveSystemUsers([...users]);
+  return true;
+};
+
+export const deleteSystemUser = (userId: string): boolean => {
+  const users = getSystemUsers();
+  const filtered = users.filter(u => u.id !== userId);
+  saveSystemUsers(filtered);
+  return true;
+};
+
+export const resetSystemUsers = (): SystemUser[] => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(INITIAL_USERS));
+    window.dispatchEvent(new Event('multillantas_state_update'));
+  }
+  return INITIAL_USERS;
+};
+
+/**
+ * Session is stored strictly in sessionStorage so closing the tab
+ * or browser immediately ends the user session and requires re-login.
+ */
 export const getLoggedUser = (): SystemUser | null => {
   if (typeof window === 'undefined') return null;
-  const stored = localStorage.getItem(LOGGED_USER_STORAGE_KEY);
+  // Clean up any stale localStorage session
+  try {
+    localStorage.removeItem(LOGGED_USER_STORAGE_KEY);
+  } catch (_) {}
+
+  const stored = sessionStorage.getItem(LOGGED_USER_STORAGE_KEY);
   if (!stored) return null;
   try {
     return JSON.parse(stored);
@@ -353,13 +435,16 @@ export const getLoggedUser = (): SystemUser | null => {
 
 export const saveLoggedUser = (user: SystemUser) => {
   if (typeof window !== 'undefined') {
-    localStorage.setItem(LOGGED_USER_STORAGE_KEY, JSON.stringify(user));
+    sessionStorage.setItem(LOGGED_USER_STORAGE_KEY, JSON.stringify(user));
+    // Remove from localStorage to enforce per-tab session
+    localStorage.removeItem(LOGGED_USER_STORAGE_KEY);
     window.dispatchEvent(new Event('multillantas_state_update'));
   }
 };
 
 export const clearLoggedUser = () => {
   if (typeof window !== 'undefined') {
+    sessionStorage.removeItem(LOGGED_USER_STORAGE_KEY);
     localStorage.removeItem(LOGGED_USER_STORAGE_KEY);
     window.dispatchEvent(new Event('multillantas_state_update'));
   }
@@ -442,5 +527,22 @@ export const saveCatalogTires = (tires: Tire[]) => {
     window.dispatchEvent(new Event('multillantas_state_update'));
   }
 };
+
+/**
+ * Resets both the stock/catalog tires and general tires back to the initial TIRES dataset.
+ * Dispatches multillantas_state_update so components immediately reflect restored inventory.
+ */
+export const resetCatalogTires = (): Tire[] => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(CATALOG_TIRES_STORAGE_KEY);
+    localStorage.removeItem(TIRES_STORAGE_KEY);
+    const freshTires = getTires();
+    localStorage.setItem(CATALOG_TIRES_STORAGE_KEY, JSON.stringify(freshTires));
+    window.dispatchEvent(new Event('multillantas_state_update'));
+    return freshTires;
+  }
+  return TIRES;
+};
+
 
 

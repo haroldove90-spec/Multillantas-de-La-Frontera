@@ -31,6 +31,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ServiceNote, NoteType, NoteStatus, Cliente, Tire, Branch, NoteItem, AccountReceivable } from '../types';
 import { MOCK_NOTES, TIRES } from '../constants';
 import { getInvoices, saveInvoices, addAuditLog, getClientes, saveClientes, getServiceNotes, saveServiceNotes, getCXC, saveCXC, updateTireStock } from '../utils/persistentStorage';
+import { AppLogo } from './AppLogo';
 
 const STATUS_CONFIG: Record<NoteStatus, { icon: any, bg: string, text: string, label: string }> = {
   'Pendiente': { icon: Clock, bg: 'bg-brand-gold/10', text: 'text-brand-gold', label: 'Pendiente' },
@@ -383,7 +384,7 @@ export const GeneradorNotas: React.FC = () => {
       {/* Header */}
       <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
         <div className="flex items-center gap-6">
-          <img src="https://appdesign.appdesignproyectos.com/multillantas.png" alt="Logo" className="h-12 w-auto" />
+          <AppLogo className="h-12 w-auto" />
           <div>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 bg-brand-red rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-red/20">

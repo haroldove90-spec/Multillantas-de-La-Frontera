@@ -11,6 +11,8 @@ export interface SystemUser {
   role: Role;
   branch: Branch;
   createdAt: string;
+  permissions?: string[];
+  isActive?: boolean;
 }
 
 export interface Sucursal {

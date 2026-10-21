@@ -26,7 +26,12 @@ import {
   AlertCircle,
   Activity,
   Printer,
-  DollarSign
+  DollarSign,
+  Users,
+  Boxes,
+  MessageCircle,
+  Send,
+  RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Role, Tire, Service, VehicleEntry, Branch, InspectionData } from './types';
@@ -41,50 +46,10 @@ import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { FacturacionPanel } from './components/FacturacionPanel';
 import { ControlOperativoPanel } from './components/ControlOperativoPanel';
 import { PlataformaCobroPanel } from './components/PlataformaCobroPanel';
-import { getTires, saveTires, addAuditLog, getLoggedUser, clearLoggedUser, getMercadoPagoConfig, saveMercadoPagoConfig, getCXC } from './utils/persistentStorage';
+import { UsuariosPanel } from './components/UsuariosPanel';
+import { AppLogo } from './components/AppLogo';
+import { getTires, saveTires, resetCatalogTires, addAuditLog, getLoggedUser, clearLoggedUser, getMercadoPagoConfig, saveMercadoPagoConfig, getCXC } from './utils/persistentStorage';
 import { LoginScreen } from './components/LoginScreen';
-
-const LOGO_URL = 'https://appdesign.appdesignproyectos.com/multillantas.png';
-
-const ExchangeRateWidget = () => {
-  const [rate, setRate] = useState(20.42);
-  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString('es-MX'));
-
-  // Clock updates every second
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date().toLocaleTimeString('es-MX'));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Rate updates every 30 seconds for simulation
-  useEffect(() => {
-    const rateTimer = setInterval(() => {
-      setRate(prev => Number((prev + (Math.random() - 0.5) * 0.01).toFixed(2)));
-    }, 30000);
-    return () => clearInterval(rateTimer);
-  }, []);
-
-  return (
-    <div className="flex items-center gap-1.5 md:gap-3 px-2 md:px-4 py-1 md:py-2 bg-brand-matte border border-brand-border rounded-lg md:rounded-2xl shadow-inner group hover:border-brand-gold/50 transition-all">
-      <div className="w-6 h-6 md:w-8 md:h-8 rounded-lg bg-brand-gold/10 flex items-center justify-center text-brand-gold shrink-0">
-        <DollarSign size={12} className="md:w-4 md:h-4" />
-      </div>
-      <div className="shrink-0">
-        <div className="flex items-center gap-1 md:gap-2">
-            <p className="text-[7px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">USD/MXN</p>
-            <div className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full bg-green-500 animate-pulse" />
-        </div>
-        <p className="text-[9px] md:text-sm font-black text-white leading-none mt-0.5">${rate}</p>
-      </div>
-      <div className="flex ml-1.5 md:ml-2 border-l border-brand-border pl-1.5 md:pl-3 flex flex-col justify-center min-w-[50px] md:min-w-[70px] shrink-0">
-         <p className="text-[6px] md:text-[8px] font-black text-slate-600 uppercase tracking-widest leading-none mb-0.5">Reloj</p>
-         <p className="text-[8px] md:text-[11px] font-mono text-brand-gold font-bold leading-none tabular-nums tracking-tighter">{currentTime}</p>
-      </div>
-    </div>
-  );
-};
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(() => getLoggedUser());
@@ -397,9 +362,20 @@ export default function App() {
     setIsCartOpen(true);
   };
 
+  const [opportunityVehicle, setOpportunityVehicle] = useState<VehicleEntry | null>(null);
+  const [opportunityPhone, setOpportunityPhone] = useState('8999234567');
+
+  const handleResetCatalog = () => {
+    if (confirm('¿Deseas restablecer el stock de llantas a los valores de fábrica originales?')) {
+      const fresh = resetCatalogTires();
+      setTiresList(fresh);
+      alert('Stock de llantas restablecido exitosamente a los valores de fábrica.');
+    }
+  };
+
   const navItems = useMemo(() => [
     { id: 'dashboard', label: 'Tablero', icon: <LayoutDashboard size={20} />, roles: ['Administrador', 'Vendedor', 'Técnico', 'Secretaria Facturista'] },
-    { id: 'ecommerce', label: 'Catálogo', icon: <ShoppingCart size={20} />, roles: ['Administrador', 'Vendedor', 'Tienda en línea'] },
+    { id: 'ecommerce', label: 'Stock', icon: <Boxes size={20} />, roles: ['Administrador', 'Vendedor', 'Tienda en línea'] },
     { id: 'taller', label: 'Control Taller', icon: <Car size={20} />, roles: ['Administrador', 'Técnico', 'Cliente'] },
     { id: 'clientes', label: 'Clientes', icon: <User size={20} />, roles: ['Administrador', 'Vendedor', 'Secretaria Facturista'] },
     { id: 'notas', label: 'Notas/POS', icon: <FileText size={20} />, roles: ['Administrador', 'Secretaria Facturista'] },
@@ -409,15 +385,20 @@ export default function App() {
     { id: 'inventario', label: 'Inventario', icon: <Box size={20} />, roles: ['Administrador', 'Vendedor', 'Secretaria Facturista'] },
     { id: 'analytics', label: 'Inteligencia', icon: <Activity size={20} />, roles: ['Administrador', 'Secretaria Facturista'] },
     { id: 'plataforma-cobro', label: 'Plataforma de cobro', icon: <CreditCard size={20} />, roles: ['Administrador'] },
+    { id: 'usuarios', label: 'Usuarios y Permisos', icon: <Users size={20} />, roles: ['Administrador'] },
   ].filter(item => {
-    // Role specific logic
+    // If the logged user has explicitly assigned permissions, respect them!
+    if (currentUser?.permissions && currentUser.permissions.length > 0) {
+      return currentUser.permissions.includes(item.id);
+    }
+    // Role specific fallback logic
     if (role === 'Tienda en línea') return item.id === 'ecommerce';
     if (role === 'Cliente') return item.id === 'taller';
     if (role === 'Técnico') return item.id === 'taller' || item.id === 'dashboard';
     if (role === 'Vendedor') return item.roles.includes('Vendedor') && item.id !== 'notas' && item.id !== 'credito-msi';
     if (role === 'Secretaria Facturista') return item.roles.includes('Secretaria Facturista');
     return item.roles.includes(role);
-  }), [role]);
+  }), [role, currentUser]);
 
   const handleSale = (amount: number) => {
     setSalesCount(prev => prev + 1);
@@ -480,7 +461,7 @@ export default function App() {
         `}>
           <div className="h-full flex flex-col p-6">
             <div className="mb-10 flex items-center justify-between">
-              <img src={LOGO_URL} alt="Multillantas" className="h-10 w-auto object-contain" />
+              <AppLogo className="h-10 w-auto" showSubtitle />
               <button 
                 onClick={() => setIsSidebarOpen(false)} 
                 className="lg:hidden text-slate-400 p-2 hover:bg-white/5 rounded-full outline-none"
@@ -499,12 +480,6 @@ export default function App() {
                   label={item.label} 
                 />
               ))}
-
-              {/* Mobile Role Switcher (integrated in nav) */}
-              <div className="lg:hidden mt-8 pt-8 border-t border-brand-border space-y-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-2">Cambiar Perfil</p>
-                <RoleSwitcher currentRole={role} setRole={setRole} isMobile />
-              </div>
             </nav>
 
             <div className="mt-auto pt-6 border-t border-brand-border space-y-4">
@@ -543,22 +518,50 @@ export default function App() {
                 <ShieldCheck size={24} className="text-brand-gold" />
                 <div>
                   <h1 className="text-xs font-black uppercase tracking-widest text-white/90">Multillantas <span className="text-brand-gold">Pro</span></h1>
-                  <p className="text-[9px] font-bold text-slate-600 uppercase tracking-tighter">Gestión de Taller y E-commerce</p>
+                  <p className="text-[9px] font-bold text-slate-600 uppercase tracking-tighter">Gestión de Taller y Stock</p>
                 </div>
               </div>
-              {/* Keep logo hidden on desktop header since it's on sidebar, but on mobile it's here */}
-              <img src={LOGO_URL} alt="Logo" className="lg:hidden h-8 w-auto" />
+              {/* Mobile header brand logo with fallback */}
+              <div className="lg:hidden">
+                <AppLogo className="h-8 w-auto" />
+              </div>
             </div>
 
-            {/* Desktop Role Selector - Refined */}
-            <div className="hidden md:block">
-              <RoleSwitcher currentRole={role} setRole={setRole} />
+            {/* Desktop User Info & Admin Quick Access */}
+            <div className="hidden md:flex items-center gap-3">
+              <div className="flex items-center gap-3 bg-brand-matte border border-brand-border px-3.5 py-1.5 rounded-2xl shadow-inner">
+                <div className="w-8 h-8 rounded-full bg-brand-red flex items-center justify-center text-white font-black text-xs shadow-md shrink-0">
+                  {(currentUser?.name || role)[0].toUpperCase()}
+                </div>
+                <div className="text-left">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-bold text-white leading-tight truncate max-w-[130px]">{currentUser?.name || role}</p>
+                    <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-md bg-brand-gold/15 text-brand-gold border border-brand-gold/30">
+                      {role}
+                    </span>
+                  </div>
+                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Sucursal {branch}</p>
+                </div>
+              </div>
+
+              {role === 'Administrador' && (
+                <button
+                  onClick={() => setActiveTab('usuarios')}
+                  className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeTab === 'usuarios'
+                      ? 'bg-brand-gold text-black shadow-lg shadow-brand-gold/20'
+                      : 'bg-brand-matte border border-brand-border hover:border-brand-gold/50 text-slate-400 hover:text-white'
+                  }`}
+                  title="Gestión de Usuarios y Permisos"
+                >
+                  <Users size={13} />
+                  <span>Usuarios</span>
+                </button>
+              )}
             </div>
 
             {/* User Icon & Notifications for mobile/desktop toggle */}
             <div className="flex items-center gap-3 relative">
-              <ExchangeRateWidget />
-
               {/* Notification Center Popover */}
               <div className="relative">
                 <button 
@@ -933,8 +936,12 @@ export default function App() {
                                     </div>
                                   ))}
                                 </div>
-                                <button className="w-full mt-4 py-3 bg-brand-red/10 hover:bg-brand-red text-brand-red hover:text-white text-[9px] font-black uppercase tracking-widest rounded-xl border border-brand-red/20 transition-all">
-                                  Contactar Cliente
+                                <button 
+                                  onClick={() => setOpportunityVehicle(v)}
+                                  className="w-full mt-4 py-3 bg-brand-red/10 hover:bg-brand-red text-brand-red hover:text-white text-[9px] font-black uppercase tracking-widest rounded-xl border border-brand-red/20 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95"
+                                >
+                                  <MessageCircle size={14} />
+                                  <span>Contactar Cliente</span>
                                 </button>
                               </div>
                             ))}
@@ -1125,18 +1132,33 @@ export default function App() {
                 </motion.div>
               )}
 
+              {activeTab === 'usuarios' && (
+                <motion.div key="usuarios" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <UsuariosPanel />
+                </motion.div>
+              )}
+
               {activeTab === 'ecommerce' && (
                 <motion.div key="ecommerce" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10">
                   <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                     <div>
-                      <h2 className="text-4xl font-black italic tracking-tighter uppercase whitespace-nowrap">CATÁLOGO <span className="text-brand-red">PREMIUM</span></h2>
-                      <p className="text-slate-500 font-black uppercase tracking-[0.2em] text-[10px] border-l-2 border-brand-blue pl-3">Marcas líderes con garantía total - {branch}</p>
+                      <h2 className="text-4xl font-black italic tracking-tighter uppercase whitespace-nowrap">STOCK DE <span className="text-brand-red">LLANTAS</span></h2>
+                      <p className="text-slate-500 font-black uppercase tracking-[0.2em] text-[10px] border-l-2 border-brand-red pl-3">Inventario físico en piso y existencias por bodega - Sucursal {branch}</p>
                     </div>
                     <div className="flex flex-wrap gap-3 items-center">
+                      <button 
+                        onClick={handleResetCatalog}
+                        className="bg-brand-matte border border-brand-border hover:border-brand-gold/60 text-slate-300 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                        title="Restablece el inventario de llantas a los valores de fábrica"
+                      >
+                        <RotateCcw size={14} className="text-brand-gold" />
+                        <span>Restablecer Stock</span>
+                      </button>
+
                       {role === 'Administrador' && (
                         <button 
                           onClick={() => setIsAddingProduct(true)}
-                          className="bg-brand-gold hover:bg-brand-gold/90 text-black px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-brand-gold/20 active:scale-95 transition-all"
+                          className="bg-brand-gold hover:bg-brand-gold/90 text-black px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-brand-gold/20 active:scale-95 transition-all cursor-pointer"
                         >
                           <Plus size={16} strokeWidth={3} /> Nuevo Producto
                         </button>
@@ -1145,16 +1167,16 @@ export default function App() {
                       {/* Active Module Cart Button */}
                       <button 
                         onClick={() => setIsCartOpen(true)}
-                        className="bg-brand-red hover:bg-brand-red/90 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-brand-red/30 active:scale-95 transition-all relative group"
+                        className="bg-brand-red hover:bg-brand-red/90 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-brand-red/30 active:scale-95 transition-all relative group cursor-pointer"
                       >
-                        <ShoppingCart size={15} strokeWidth={2.5} />
-                        <span>🛒 Carrito de Compras</span>
+                        <Boxes size={15} strokeWidth={2.5} />
+                        <span>Llantas en Pedido</span>
                         {cartItems.length > 0 ? (
                           <span className="bg-brand-gold text-black rounded-full px-2 py-0.5 text-[9px] font-black leading-none ml-1 animate-pulse">
                             {cartItems.reduce((acc, curr) => acc + curr.quantity, 0)}
                           </span>
                         ) : (
-                          <span className="text-slate-300 text-[9px] font-black ml-1">(Vacío)</span>
+                          <span className="text-slate-300 text-[9px] font-black ml-1">(0)</span>
                         )}
                       </button>
 
@@ -1168,7 +1190,7 @@ export default function App() {
                       </select>
                       <select 
                         onChange={(e) => setSelectedBrand(e.target.value)}
-                        className="bg-brand-matte border border-brand-border rounded-xl px-4 py-2 text-xs font-black uppercase tracking-widest focus:outline-none focus:border-brand-blue transition-colors text-white"
+                        className="bg-brand-matte border border-brand-border rounded-xl px-4 py-2 text-xs font-black uppercase tracking-widest focus:outline-none focus:border-brand-gold transition-colors text-white"
                       >
                         <option value="all">TODAS LAS MARCAS</option>
                         {brands.map(b => <option key={b} value={b}>{b}</option>)}
@@ -1986,10 +2008,120 @@ export default function App() {
                   setIsCheckoutOpen(false);
                   setCartItems([]);
                 }}
-                className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-xl active:scale-95 transition-all"
+                className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-xl active:scale-95 transition-all cursor-pointer"
               >
-                Volver a la Tienda
+                Volver al Stock
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Contactar Cliente Oportunidad */}
+      <AnimatePresence>
+        {opportunityVehicle && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-brand-dark border border-brand-border w-full max-w-lg rounded-3xl p-6 md:p-8 shadow-2xl space-y-6"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-brand-border/60">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-brand-red/20 text-brand-red border border-brand-red/40 flex items-center justify-center">
+                    <MessageCircle size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black italic uppercase text-white">Contactar Oportunidad de Venta</h3>
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                      {opportunityVehicle.brand} {opportunityVehicle.model} • Placas {opportunityVehicle.plate}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setOpportunityVehicle(null)}
+                  className="p-2 text-slate-500 hover:text-white rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Diagnostic Alerts Summary */}
+              <div className="bg-brand-matte border border-brand-border rounded-2xl p-4 space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-brand-gold">Alertas Críticas Detectadas:</p>
+                <div className="flex flex-wrap gap-2">
+                  {opportunityVehicle.inspection?.checklist.filter(p => p.status === 'rojo').map((point, idx) => (
+                    <span key={idx} className="bg-brand-red/15 text-brand-red border border-brand-red/30 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase flex items-center gap-1.5">
+                      <AlertCircle size={10} /> {point.label}
+                    </span>
+                  ))}
+                  {opportunityVehicle.inspection?.tires && (
+                    (Object.entries(opportunityVehicle.inspection.tires) as [string, { depth: number; psi: number }][])
+                      .filter(([_, data]) => data.depth < 3)
+                      .map(([pos, data]) => (
+                        <span key={pos} className="bg-brand-red/15 text-brand-red border border-brand-red/30 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase">
+                          Llanta {pos.toUpperCase()}: {data.depth}mm
+                        </span>
+                      ))
+                  )}
+                </div>
+              </div>
+
+              {/* Phone input */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Teléfono Móvil (WhatsApp)
+                </label>
+                <input
+                  type="tel"
+                  value={opportunityPhone}
+                  onChange={(e) => setOpportunityPhone(e.target.value)}
+                  placeholder="8991234567"
+                  className="w-full bg-brand-matte border border-brand-border rounded-xl px-4 py-2.5 text-sm text-white font-mono outline-none focus:border-brand-red transition-all"
+                />
+              </div>
+
+              {/* WhatsApp Message Preview */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Mensaje Preventivo Generado
+                </label>
+                <div className="bg-brand-matte border border-brand-border/60 rounded-xl p-3 text-xs text-slate-300 font-sans leading-relaxed">
+                  Hola, le escribimos de <strong>Multillantas de la Frontera (Sucursal {opportunityVehicle.branch})</strong>. Durante la inspección técnica preventiva de su vehículo <strong>{opportunityVehicle.brand} {opportunityVehicle.model}</strong> (Placas: {opportunityVehicle.plate}) detectamos alertas técnicas en: {opportunityVehicle.inspection?.checklist.filter(p => p.status === 'rojo').map(p => p.label).join(', ') || 'revisión general'}. ¿Le gustaría que le preparemos una cotización con descuento especial o agendar su reemplazo hoy mismo?
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    const alertText = opportunityVehicle.inspection?.checklist.filter(p => p.status === 'rojo').map(p => p.label).join(', ') || 'revisión general';
+                    const text = `Hola, le escribimos de Multillantas de la Frontera (Sucursal ${opportunityVehicle.branch}). Durante la inspección técnica preventiva de su vehículo ${opportunityVehicle.brand} ${opportunityVehicle.model} (Placas: ${opportunityVehicle.plate}) detectamos alertas técnicas en: ${alertText}. ¿Le gustaría que le preparemos una cotización con descuento especial o agendar su reemplazo hoy mismo?`;
+                    const cleanPhone = opportunityPhone.replace(/\D/g, '') || '8999234567';
+                    const url = `https://wa.me/52${cleanPhone}?text=${encodeURIComponent(text)}`;
+                    window.open(url, '_blank');
+                    setOpportunityVehicle(null);
+                  }}
+                  className="py-3 px-4 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-green-900/30 transition-all cursor-pointer"
+                >
+                  <Send size={14} /> Abrir WhatsApp
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('notas');
+                    setOpportunityVehicle(null);
+                  }}
+                  className="py-3 px-4 bg-brand-red hover:bg-brand-red/90 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-brand-red/30 transition-all cursor-pointer"
+                >
+                  <FileText size={14} /> Cotizar en POS
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -1997,41 +2129,6 @@ export default function App() {
     </div>
   );
 }
-
-interface RoleSwitcherProps {
-  currentRole: Role;
-  setRole: (r: Role) => void;
-  isMobile?: boolean;
-}
-
-const RoleSwitcher: React.FC<RoleSwitcherProps> = ({ currentRole, setRole, isMobile }) => {
-  const roles: Role[] = ['Administrador', 'Vendedor', 'Técnico', 'Cliente', 'Tienda en línea', 'Secretaria Facturista'];
-  
-  return (
-    <div className={`${isMobile ? 'grid grid-cols-2 gap-2' : 'flex items-center gap-1 bg-brand-matte border border-brand-border p-1 rounded-2xl shadow-xl'}`}>
-      {roles.map((r) => (
-        <button
-          key={r}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setRole(r);
-          }}
-          className={`
-            px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all duration-300 relative z-10
-            ${currentRole === r 
-              ? 'bg-brand-red text-white shadow-lg shadow-brand-red/40 translate-y-[-1px]' 
-              : 'text-slate-500 hover:text-white hover:bg-white/5'
-            }
-            ${!isMobile && currentRole === r ? 'scale-105' : ''}
-          `}
-        >
-          {r}
-        </button>
-      ))}
-    </div>
-  );
-};
 
 interface SidebarLinkProps {
   active: boolean;
@@ -2134,12 +2231,12 @@ function ProductCard({ tire, onSell, isCustomer }: any) {
 
         <button 
           onClick={handleSale}
-          className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-2 shadow-lg ${
+          className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer ${
             loading ? 'bg-green-600 shadow-green-900/40' : (isCustomer ? 'bg-brand-blue hover:bg-brand-blue/90 shadow-brand-blue/30' : 'bg-brand-red hover:bg-brand-red/90 active:scale-95 shadow-brand-red/30')
           }`}
         >
-          {loading ? <CheckCircle2 size={16} /> : (isCustomer ? <ShoppingCart size={16} /> : <ShoppingCart size={16} />)}
-          {loading ? (isCustomer ? 'AÑADIDO' : '¡LISTO!') : (isCustomer ? 'COMPRAR' : 'VENDER AHORA')}
+          {loading ? <CheckCircle2 size={16} /> : <Boxes size={16} />}
+          {loading ? (isCustomer ? 'APARTADO' : '¡ASIGNADO!') : (isCustomer ? 'APARTAR EN STOCK' : 'ASIGNAR A VENTA')}
         </button>
       </div>
     </div>

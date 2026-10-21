@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { VehicleEntry, Branch } from '../types';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import { AppLogo } from './AppLogo';
 
 interface OrderItem {
   quantity: number;
@@ -162,7 +163,7 @@ export const NotaDeServicio: React.FC<NotaDeServicioProps> = ({ vehicle, onClose
           {/* Header Format */}
           <div className="flex flex-col sm:flex-row justify-between items-start gap-6 sm:gap-8 mb-8">
             <div className="space-y-4 w-full sm:w-auto">
-              <img src="https://appdesign.appdesignproyectos.com/multillantas.png" alt="Logo" className="h-12 sm:h-16 w-auto object-contain mx-auto sm:mx-0" />
+              <AppLogo className="h-12 sm:h-16 w-auto object-contain mx-auto sm:mx-0" />
               <div className="space-y-1 text-center sm:text-left">
                 <h1 className="text-lg sm:text-xl font-black uppercase tracking-tighter text-slate-900 print:text-black">Multillantas de la Frontera</h1>
                 <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase flex items-center justify-center sm:justify-start gap-2 print:text-black">
