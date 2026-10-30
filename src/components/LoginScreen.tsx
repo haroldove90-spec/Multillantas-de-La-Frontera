@@ -209,10 +209,51 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
                 <button 
                   type="submit"
-                  className="w-full bg-brand-red hover:bg-brand-red/90 text-white py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-lg shadow-brand-red/20 active:scale-95 transition-all flex items-center justify-center gap-2 mt-2"
+                  className="w-full bg-brand-red hover:bg-brand-red/90 text-white py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-lg shadow-brand-red/20 active:scale-95 transition-all flex items-center justify-center gap-2 mt-2 cursor-pointer"
                 >
                   <KeyRound size={14} /> Entrar al Sistema
                 </button>
+
+                {/* Quick Credential Chips for Authorized Accounts */}
+                <div className="pt-4 border-t border-brand-border/40">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2.5 flex items-center justify-between">
+                    <span>Cuentas Autorizadas Rápidas</span>
+                    <span className="text-brand-gold text-[8px] font-bold">Clic para autocompletar</span>
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginUsername('admin_123');
+                        setLoginPassword('Chevropar#1970');
+                        setLoginError('');
+                      }}
+                      className="text-left p-2.5 rounded-xl bg-brand-matte/80 border border-brand-border/80 hover:border-brand-gold/60 transition-all group cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-white group-hover:text-brand-gold">Harold Anguiano</span>
+                        <span className="text-[8px] bg-brand-red/20 text-brand-red px-1.5 py-0.5 rounded font-black uppercase">Admin</span>
+                      </div>
+                      <p className="text-[9px] font-mono text-slate-400 mt-0.5 truncate">@admin_123</p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginUsername('dorian_orlando');
+                        setLoginPassword('Dorian#123.');
+                        setLoginError('');
+                      }}
+                      className="text-left p-2.5 rounded-xl bg-brand-matte/80 border border-brand-border/80 hover:border-brand-gold/60 transition-all group cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-white group-hover:text-brand-gold">Dorian Orlando</span>
+                        <span className="text-[8px] bg-brand-red/20 text-brand-red px-1.5 py-0.5 rounded font-black uppercase">Admin</span>
+                      </div>
+                      <p className="text-[9px] font-mono text-slate-400 mt-0.5 truncate">@dorian_orlando</p>
+                    </button>
+                  </div>
+                </div>
               </motion.form>
             ) : (
               <motion.form 

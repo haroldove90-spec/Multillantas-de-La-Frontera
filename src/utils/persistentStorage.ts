@@ -300,6 +300,28 @@ const LOGGED_USER_STORAGE_KEY = 'multillantas_logged_user_v1';
 
 const INITIAL_USERS: SystemUser[] = [
   {
+    id: 'usr-admin-harold',
+    username: 'admin_123',
+    password: 'Chevropar#1970',
+    name: 'Harold Anguiano',
+    role: 'Administrador',
+    branch: 'Frontera',
+    permissions: ['dashboard', 'ecommerce', 'taller', 'clientes', 'notas', 'credito-msi', 'facturacion', 'control-operativo', 'inventario', 'analytics', 'plataforma-cobro', 'usuarios'],
+    isActive: true,
+    createdAt: '2026-06-09T14:20:00.000Z'
+  },
+  {
+    id: 'usr-admin-dorian',
+    username: 'dorian_orlando',
+    password: 'Dorian#123.',
+    name: 'Dorian Orlando',
+    role: 'Administrador',
+    branch: 'Frontera',
+    permissions: ['dashboard', 'ecommerce', 'taller', 'clientes', 'notas', 'credito-msi', 'facturacion', 'control-operativo', 'inventario', 'analytics', 'plataforma-cobro', 'usuarios'],
+    isActive: true,
+    createdAt: '2026-06-09T14:20:00.000Z'
+  },
+  {
     id: 'usr-admin',
     username: 'admin1',
     password: 'admin123',
@@ -369,7 +391,42 @@ export const getSystemUsers = (): SystemUser[] => {
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(INITIAL_USERS));
       return INITIAL_USERS;
     }
-    return parsed;
+
+    // Guarantee that requested system credentials are added or kept up to date
+    let updated = false;
+    const merged: SystemUser[] = [...parsed];
+
+    for (const initUser of INITIAL_USERS) {
+      const existingIdx = merged.findIndex(
+        u => u.username.toLowerCase() === initUser.username.toLowerCase()
+      );
+      if (existingIdx === -1) {
+        merged.unshift(initUser);
+        updated = true;
+      } else {
+        // Keep requested credentials synchronized if password or status was changed
+        if (
+          merged[existingIdx].password !== initUser.password ||
+          merged[existingIdx].role !== initUser.role ||
+          merged[existingIdx].isActive === false
+        ) {
+          merged[existingIdx] = {
+            ...merged[existingIdx],
+            password: initUser.password,
+            role: initUser.role,
+            name: initUser.name,
+            isActive: true,
+            permissions: initUser.permissions
+          };
+          updated = true;
+        }
+      }
+    }
+
+    if (updated) {
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(merged));
+    }
+    return merged;
   } catch (e) {
     return INITIAL_USERS;
   }
