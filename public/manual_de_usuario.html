@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual de Usuario | Multillantas de la Frontera</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+    
+    :root {
+      --brand-red: #E30613;
+      --brand-gold: #C5A059;
+      --brand-dark: #111111;
+      --brand-gray: #666666;
+      --border-color: #e5e7eb;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #1f2937;
+      background: #f9fafb;
+      line-height: 1.6;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 3rem;
+      border-radius: 1.5rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+      border: 1px solid var(--border-color);
+    }
+
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 3px solid var(--brand-red);
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .logo-title h1 {
+      font-size: 1.8rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      font-style: italic;
+      color: #111;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-title h1 span {
+      color: var(--brand-gold);
+    }
+
+    .logo-title p {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--brand-red);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .meta-info {
+      text-align: right;
+      font-size: 0.8rem;
+      color: var(--brand-gray);
+      line-height: 1.4;
+    }
+
+    .btn-print {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--brand-red);
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      border: none;
+      cursor: pointer;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 12px rgba(227, 6, 19, 0.25);
+    }
+
+    .btn-print:hover {
+      background: #c50510;
+    }
+
+    h2 {
+      font-size: 1.3rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      color: #111;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.5rem;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .section-badge {
+      display: inline-flex;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: var(--brand-gold);
+      color: black;
+      font-weight: 900;
+      font-size: 0.8rem;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card {
+      background: #fdfdfd;
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 1.25rem;
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #111;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+    }
+
+    .card-meta {
+      font-family: monospace;
+      font-size: 0.8rem;
+      background: #f3f4f6;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      margin-top: 0.5rem;
+      line-height: 1.5;
+    }
+
+    ul, ol {
+      padding-left: 1.25rem;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    li {
+      margin-bottom: 0.35rem;
+    }
+
+    .alert-box {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      font-size: 0.85rem;
+      color: #92400e;
+      margin: 1rem 0;
+    }
+
+    .footer {
+      border-top: 1px solid var(--border-color);
+      padding-top: 1.5rem;
+      margin-top: 3rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--brand-gray);
+    }
+
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      .container {
+        box-shadow: none;
+        border: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      .btn-print {
+        display: none !important;
+      }
+      .page-break {
+        page-break-before: always;
+      }
+      .card {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <button class="btn-print" onclick="window.print()">
+      🖨️ Imprimir / Guardar como PDF
+    </button>
+
+    <header class="header-bar">
+      <div class="logo-title">
+        <h1>Multillantas <span>de la Frontera</span></h1>
+        <p>Manual Oficial de Usuario y Operación v4.2</p>
+      </div>
+      <div class="meta-info">
+        <strong>Sucursales:</strong> Centro • Norte • Frontera<br>
+        <strong>Edición:</strong> 2026 para Cliente y Colaboradores<br>
+        <strong>Seguridad:</strong> Cierre de sesión por pestaña
+      </div>
+    </header>
+
+    <!-- INTRO -->
+    <div class="alert-box">
+      <strong>📌 Nota Importante de Seguridad:</strong> El sistema cuenta con cierre de sesión automático al cerrar la pestaña. Cada vez que inicie su jornada o vuelva a abrir la ventana del navegador, deberá ingresar su usuario y contraseña para proteger el dinero en caja y las existencias.
+    </div>
+
+    <!-- SECCION 1: CREDENCIALES -->
+    <h2><span class="section-badge">1</span> Credenciales de Acceso Oficiales</h2>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Harold Anguiano (Admin)</div>
+        <p style="font-size: 0.85rem; color: #4b5563;">Control total del negocio, finanzas, comisiones y configuración.</p>
+        <div class="card-meta">
+          <strong>Usuario:</strong> admin_123<br>
+          <strong>Contraseña:</strong> Chevropar#1970<br>
+          <strong>Sucursal:</strong> Frontera
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Dorian Orlando (Admin)</div>
+        <p style="font-size: 0.85rem; color: #4b5563;">Supervisión administrativa, auditoría y gestión de personal.</p>
+        <div class="card-meta">
+          <strong>Usuario:</strong> dorian_orlando<br>
+          <strong>Contraseña:</strong> Dorian#123.<br>
+          <strong>Sucursal:</strong> Centro
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Vendedor (Mostrador)</div>
+        <p style="font-size: 0.85rem; color: #4b5563;">Ventas de llantas, rines, cotizaciones y oportunidades de taller.</p>
+        <div class="card-meta">
+          <strong>Usuario:</strong> vendedor1<br>
+          <strong>Contraseña:</strong> ventas123
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Técnico / Asesor Taller</div>
+        <p style="font-size: 0.85rem; color: #4b5563;">Recepción de autos, hoja de inspección en mm y checklist preventivo.</p>
+        <div class="card-meta">
+          <strong>Usuario:</strong> tecnico1<br>
+          <strong>Contraseña:</strong> taller123
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Secretaria Facturista</div>
+        <p style="font-size: 0.85rem; color: #4b5563;">Facturación SAT CFDI 4.0, Notas de venta y control de cobranza CxC.</p>
+        <div class="card-meta">
+          <strong>Usuario:</strong> facturacion1<br>
+          <strong>Contraseña:</strong> factura123
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Cliente / Consulta</div>
+        <p style="font-size: 0.85rem; color: #4b5563;">Rastreo del auto en taller en tiempo real e inspección de sus neumáticos.</p>
+        <div class="card-meta">
+          <strong>Usuario:</strong> cliente1<br>
+          <strong>Contraseña:</strong> cliente123
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCION 2: ROL POR ROL -->
+    <h2 class="page-break"><span class="section-badge">2</span> Guía Rápida Rol por Rol</h2>
+
+    <div class="card" style="margin-bottom: 1rem;">
+      <div class="card-title">👔 Rol: Administrador</div>
+      <p style="font-size: 0.85rem;"><strong>Objetivo:</strong> Supervisar las ventas y la rentabilidad de las tres sucursales sin complicaciones.</p>
+      <ul>
+        <li><strong>Crear personal nuevo:</strong> Entrar a <em>"Usuarios y Permisos"</em>, presionar <em>"+ Nuevo Usuario"</em>, escribir nombre, clave y sucursal.</li>
+        <li><strong>Cambiar de sucursal:</strong> Clic en su nombre en la esquina superior derecha y seleccionar Centro, Norte o Frontera.</li>
+        <li><strong>Configurar Mercado Pago:</strong> En el módulo <em>"Plataforma de Cobro"</em> para activar terminales y cobros con tarjeta.</li>
+      </ul>
+    </div>
+
+    <div class="card" style="margin-bottom: 1rem;">
+      <div class="card-title">🤝 Rol: Vendedor de Mostrador</div>
+      <p style="font-size: 0.85rem;"><strong>Objetivo:</strong> Atender rápidamente al cliente, encontrar la llanta que necesita y cerrar la venta.</p>
+      <ul>
+        <li><strong>Buscar llantas:</strong> En el módulo <em>"Stock"</em>, filtrar por medida de Rin (13" a 22") o marca (Michelin, Pirelli, Continental, Goodyear, etc.).</li>
+        <li><strong>Verificar stock en otras sucursales:</strong> Si no hay en Frontera, revisar si hay en Centro o Norte para pedir traslado de inmediato.</li>
+        <li><strong>Aprovechar Oportunidades:</strong> En el Tablero, revisar autos con llantas lisas o frenos desgastados que salieron de la inspección de taller para ofrecerles el cambio.</li>
+      </ul>
+    </div>
+
+    <div class="card" style="margin-bottom: 1rem;">
+      <div class="card-title">🔧 Rol: Técnico / Asesor de Taller</div>
+      <p style="font-size: 0.85rem;"><strong>Objetivo:</strong> Inspeccionar el vehículo apenas entra y registrar el semáforo de seguridad con total honestidad.</p>
+      <ul>
+        <li><strong>Recibir vehículo:</strong> En <em>"Control Taller"</em> dar de alta placas, modelo y motivo.</li>
+        <li><strong>Inspección digital:</strong> Pulsar <em>"Inspeccionar"</em> y registrar milímetros de dibujo y presión en las 4 llantas. Verde = Bueno (mayor a 4mm), Amarillo = Desgaste medio (3 a 4mm), Rojo = Reemplazo urgente (menor a 3mm).</li>
+        <li><strong>Checklist:</strong> Calificar Frenos, Luces, Fluidos, Suspensión y Batería. Presionar <em>"Guardar Inspección"</em>.</li>
+      </ul>
+    </div>
+
+    <div class="card" style="margin-bottom: 1rem;">
+      <div class="card-title">📑 Rol: Secretaria Facturista</div>
+      <p style="font-size: 0.85rem;"><strong>Objetivo:</strong> Cobranza oportuna, emisión de comprobantes fiscales y recibos.</p>
+      <ul>
+        <li><strong>Generar Notas:</strong> En <em>"Notas/POS"</em> crear notas de venta de contado, apartados o créditos con folio consecutivo.</li>
+        <li><strong>Cobranza:</strong> En <em>"Cobranza y Créditos"</em> dar seguimiento a clientes con saldo pendiente y registrar abonos.</li>
+        <li><strong>Facturar CFDI 4.0:</strong> En <em>"Facturación"</em> capturar RFC, Razón Social, Uso de CFDI y emitir la factura para el cliente.</li>
+      </ul>
+    </div>
+
+    <div class="card" style="margin-bottom: 1rem;">
+      <div class="card-title">🚗 Rol: Cliente</div>
+      <p style="font-size: 0.85rem;"><strong>Objetivo:</strong> Transparencia total. Saber qué se le hace a su coche en todo momento.</p>
+      <ul>
+        <li>Rastrea el estatus: <em>En Recepción</em>, <em>En Bahía de Servicio</em> o <em>Listo para Entrega</em>.</li>
+        <li>Revisa el dictamen técnico de sus llantas con gráficos claros.</li>
+      </ul>
+    </div>
+
+    <!-- SECCION 3: MODULO POR MODULO -->
+    <h2 class="page-break"><span class="section-badge">3</span> Guía Módulo por Módulo (Los 12 Módulos)</h2>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">1. Tablero Principal</div>
+        <p style="font-size: 0.85rem;">Resumen de ventas del día, dinero cobrado, autos ingresados y alertas de oportunidades comerciales.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">2. Stock (Llantas y Rines)</div>
+        <p style="font-size: 0.85rem;">Catálogo interactivo con buscador por Rin y Marca. Desglose de existencias por sucursal y botón para restablecer stock de fábrica.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">3. Control Taller y Bahías</div>
+        <p style="font-size: 0.85rem;">Registro de placas, asignación de bahías y hoja de inspección digital de neumáticos con medidor milimétrico.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">4. Directorio de Clientes</div>
+        <p style="font-size: 0.85rem;">Directorio de clientes particulares y empresas de flotillas con historial de servicios y límite de crédito.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">5. Notas / Punto de Venta (POS)</div>
+        <p style="font-size: 0.85rem;">Generación de notas de mostrador, apartados y pedidos especiales con desglose de IVA y formato de impresión.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">6. Cobranza, Créditos y MSI</div>
+        <p style="font-size: 0.85rem;">Control de Cuentas por Cobrar (CxC), registro de abonos y simulador de Meses Sin Intereses (3, 6, 9 y 12 MSI).</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">7. Facturación Electrónica SAT</div>
+        <p style="font-size: 0.85rem;">Emisión de facturas CFDI versión 4.0 con timbrado fiscal, validación de RFC y métodos de pago PUE y PPD.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">8. Control Operativo y Auditoría</div>
+        <p style="font-size: 0.85rem;">Bitácora en tiempo real de todos los eventos del sistema para evitar pérdidas y supervisar turnos.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">9. Inventario y Bodegas</div>
+        <p style="font-size: 0.85rem;">Control de entradas y salidas de llantas, así como traspasos directos entre las sucursales Centro, Norte y Frontera.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">10. Inteligencia Predictiva</div>
+        <p style="font-size: 0.85rem;">Algoritmos de análisis de desgaste de llantas y pronóstico de productos más vendidos en la región fronteriza.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">11. Pasarelas de Cobro</div>
+        <p style="font-size: 0.85rem;">Configuración de terminales bancarias y cuenta de Mercado Pago con cálculo de comisiones e IVA.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">12. Usuarios y Permisos</div>
+        <p style="font-size: 0.85rem;">Creación y administración de cuentas de empleados, asignación de permisos por módulo y exportación de script SQL.</p>
+      </div>
+    </div>
+
+    <!-- PREGUNTAS FRECUENTES -->
+    <h2><span class="section-badge">4</span> Preguntas Frecuentes y Respuestas Clave</h2>
+    <div class="card" style="margin-bottom: 0.75rem;">
+      <strong>¿Por qué el sistema me pide contraseña si cierro la pestaña?</strong>
+      <p style="font-size: 0.85rem; margin-top: 0.25rem;">Por protección de las finanzas y los datos del taller. Al cerrar la ventana, la sesión se destruye para que nadie no autorizado pueda ver la caja o modificar inventario.</p>
+    </div>
+    <div class="card" style="margin-bottom: 0.75rem;">
+      <strong>¿Cómo cambio entre sucursal Centro, Norte y Frontera?</strong>
+      <p style="font-size: 0.85rem; margin-top: 0.25rem;">En la barra superior haga clic en su perfil y presione el botón de la sucursal deseada. Todo el inventario y tablero cambiará inmediatamente.</p>
+    </div>
+    <div class="card" style="margin-bottom: 0.75rem;">
+      <strong>¿Cómo guardo este manual en PDF?</strong>
+      <p style="font-size: 0.85rem; margin-top: 0.25rem;">Presione el botón rojo de arriba "🖨️ Imprimir / Guardar como PDF" y en destino seleccione "Guardar como PDF".</p>
+    </div>
+
+    <footer class="footer">
+      <strong>Multillantas de la Frontera S.A. de C.V.</strong><br>
+      Sistema Integral de Gestión de Taller, Stock y Cobranza • Versión 4.2 Oficial
+    </footer>
+  </div>
+
+</body>
+</html>

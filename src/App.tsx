@@ -31,7 +31,8 @@ import {
   Boxes,
   MessageCircle,
   Send,
-  RotateCcw
+  RotateCcw,
+  BookOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Role, Tire, Service, VehicleEntry, Branch, InspectionData } from './types';
@@ -47,6 +48,7 @@ import { FacturacionPanel } from './components/FacturacionPanel';
 import { ControlOperativoPanel } from './components/ControlOperativoPanel';
 import { PlataformaCobroPanel } from './components/PlataformaCobroPanel';
 import { UsuariosPanel } from './components/UsuariosPanel';
+import { ManualUsuarioModal } from './components/ManualUsuarioModal';
 import { AppLogo } from './components/AppLogo';
 import { getTires, saveTires, resetCatalogTires, addAuditLog, getLoggedUser, clearLoggedUser, getMercadoPagoConfig, saveMercadoPagoConfig, getCXC } from './utils/persistentStorage';
 import { LoginScreen } from './components/LoginScreen';
@@ -70,6 +72,7 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
 
   // Mercado Pago Config State
   const [mpConfig, setMpConfig] = useState(() => getMercadoPagoConfig());
@@ -558,6 +561,15 @@ export default function App() {
                   <span>Usuarios</span>
                 </button>
               )}
+
+              <button
+                onClick={() => setIsManualModalOpen(true)}
+                className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer bg-brand-matte border border-brand-border hover:border-brand-gold/60 text-slate-300 hover:text-white group"
+                title="Manual de Usuario en PDF (Rol por rol y módulo por módulo)"
+              >
+                <BookOpen size={13} className="text-brand-gold group-hover:scale-110 transition-transform" />
+                <span className="hidden sm:inline">Manual PDF</span>
+              </button>
             </div>
 
             {/* User Icon & Notifications for mobile/desktop toggle */}
@@ -790,6 +802,14 @@ export default function App() {
                               <span>Pasarela de Cobro</span>
                             </button>
                           )}
+
+                          <button
+                            onClick={() => { setIsManualModalOpen(true); setIsUserDropdownOpen(false); }}
+                            className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-brand-gold hover:text-white hover:bg-white/5 rounded-xl transition-all border-t border-brand-border/40 mt-1 pt-2"
+                          >
+                            <BookOpen size={14} className="text-brand-gold" />
+                            <span>Manual de Usuario (PDF)</span>
+                          </button>
                         </div>
 
                         {/* Logout Button */}
@@ -2126,6 +2146,12 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Manual de Usuario Modal */}
+      <ManualUsuarioModal 
+        isOpen={isManualModalOpen} 
+        onClose={() => setIsManualModalOpen(false)} 
+      />
     </div>
   );
 }

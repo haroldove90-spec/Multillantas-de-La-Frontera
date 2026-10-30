@@ -9,12 +9,14 @@ import {
   Sparkles, 
   AlertTriangle,
   UserPlus,
-  LogIn
+  LogIn,
+  BookOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SystemUser, Role, Branch } from '../types';
 import { getSystemUsers, saveSystemUsers, saveLoggedUser } from '../utils/persistentStorage';
 import { AppLogo } from './AppLogo';
+import { ManualUsuarioModal } from './ManualUsuarioModal';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: SystemUser) => void;
@@ -22,6 +24,7 @@ interface LoginScreenProps {
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const [isManualOpen, setIsManualOpen] = useState(false);
   
   // Login States
   const [loginUsername, setLoginUsername] = useState('');
@@ -369,12 +372,33 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         </div>
       </motion.div>
 
+      {/* Manual de Usuario PDF Quick Button */}
+      <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setIsManualOpen(true)}
+          className="px-5 py-2.5 rounded-2xl bg-brand-matte border border-brand-border/80 hover:border-brand-gold/70 text-slate-300 hover:text-white transition-all flex items-center gap-2 text-xs font-bold shadow-lg shadow-black/40 cursor-pointer group active:scale-95"
+        >
+          <BookOpen size={16} className="text-brand-gold group-hover:scale-110 transition-transform" />
+          <span>Manual de Usuario (Imprimir o Descargar PDF)</span>
+          <span className="text-[9px] bg-brand-gold/15 text-brand-gold font-mono px-2 py-0.5 rounded-full uppercase">
+            Rol x Rol
+          </span>
+        </button>
+      </div>
+
       {/* Footer credits / non-intrusive */}
-      <div className="mt-8 text-center text-[10px] text-slate-700 font-mono flex items-center gap-2 font-bold uppercase tracking-widest">
+      <div className="mt-4 text-center text-[10px] text-slate-700 font-mono flex items-center gap-2 font-bold uppercase tracking-widest">
         <span>© 2026 Multillantas de la Frontera S.A. de C.V.</span>
         <span>•</span>
         <span>Secure SQL Ledger Interface v4</span>
       </div>
+
+      {/* Manual de Usuario Modal */}
+      <ManualUsuarioModal 
+        isOpen={isManualOpen} 
+        onClose={() => setIsManualOpen(false)} 
+      />
     </div>
   );
 };

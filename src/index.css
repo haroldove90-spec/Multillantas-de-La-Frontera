@@ -68,3 +68,37 @@ select {
 option {
   @apply bg-[#111] text-gray-300;
 }
+
+/* Print and PDF generation styles */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  aside, header, nav, .print\:hidden {
+    display: none !important;
+  }
+
+  #manual-print-area {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    padding: 0 !important;
+    background-color: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  .print\:break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  @page {
+    margin: 1.5cm;
+    size: letter;
+  }
+}
+
